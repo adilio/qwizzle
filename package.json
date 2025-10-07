@@ -1,0 +1,21 @@
+{
+  "name": "qwizzle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qwizzle monorepo",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:web": "corepack pnpm --filter qwizzle-web dev",
+    "build:web": "corepack pnpm --filter qwizzle-web build",
+    "preview:web": "corepack pnpm --filter qwizzle-web preview",
+    "test": "vitest run",
+    "lint": "corepack pnpm -r lint",
+    "start:mobile": "corepack pnpm --filter qwizzle-mobile start",
+    "size": "corepack pnpm --filter qwizzle-web build && ls -lh apps/web/dist/assets/*.js | awk '{print $5, $9}'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

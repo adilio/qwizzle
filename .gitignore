@@ -1,0 +1,11 @@
+node_modules
+pnpm-lock.yaml
+apps/web/dist
+apps/web/.vite
+apps/web/node_modules
+apps/mobile/.expo
+apps/mobile/node_modules
+.env*
+.DS_Store
+AGENTS.md
+AGENTS2.md
