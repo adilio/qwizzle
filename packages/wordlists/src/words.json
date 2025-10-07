@@ -1,0 +1,5 @@
+[
+  { "word": "REACT", "clue": "A JavaScript library for building user interfaces" },
+  { "word": "VITE",  "clue": "A fast dev server and build tool" },
+  { "word": "STATE", "clue": "What you manage inside React components" }
+]
