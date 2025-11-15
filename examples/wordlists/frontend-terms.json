@@ -1,0 +1,52 @@
+[
+  {
+    "word": "REACT",
+    "definition": "A JavaScript library for building user interfaces, maintained by Meta",
+    "clue": "Facebook's UI library"
+  },
+  {
+    "word": "VITE",
+    "definition": "A fast frontend build tool that leverages native ES modules",
+    "clue": "Lightning-fast build tool"
+  },
+  {
+    "word": "NEXTJS",
+    "definition": "A React framework for production with hybrid static and server rendering",
+    "clue": "React meta-framework by Vercel"
+  },
+  {
+    "word": "SVELTE",
+    "definition": "A radical new approach to building user interfaces with no virtual DOM",
+    "clue": "Compile-time framework"
+  },
+  {
+    "word": "ASTRO",
+    "definition": "A modern static site builder that ships zero JavaScript by default",
+    "clue": "Zero-JS static site generator"
+  },
+  {
+    "word": "REDUX",
+    "definition": "A predictable state container for JavaScript apps",
+    "clue": "Popular state management"
+  },
+  {
+    "word": "ZUSTAND",
+    "definition": "A small, fast and scalable state management solution using simplified flux principles",
+    "clue": "Lightweight state library"
+  },
+  {
+    "word": "TANSTACK",
+    "definition": "A collection of high-quality open-source libraries for building web applications",
+    "clue": "React Query creators"
+  },
+  {
+    "word": "VITEST",
+    "definition": "A blazing fast unit test framework powered by Vite",
+    "clue": "Vite-native testing framework"
+  },
+  {
+    "word": "PNPM",
+    "definition": "Fast, disk space efficient package manager that creates a non-flat node_modules",
+    "clue": "Efficient npm alternative"
+  }
+]

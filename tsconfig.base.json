@@ -14,7 +14,9 @@
     "types": ["node"],
     "paths": {
       "@qwizzle/engine": ["./packages/engine/src/index.ts"],
-      "@qwizzle/wordlists/*": ["./packages/wordlists/src/*"]
+      "@qwizzle/wordlists/*": ["./packages/wordlists/src/*"],
+      "@qwizzle/plugins": ["./packages/plugins/src/index.ts"],
+      "@qwizzle/plugins/*": ["./packages/plugins/src/*"]
     }
   },
   "include": []
