@@ -1,9 +1,15 @@
-import { Text, View } from "react-native";
+/**
+ * Qwizzle Mobile App
+ * Cross-platform word puzzle game
+ */
+
+import { ThemeProvider } from "./src/theme/ThemeContext";
+import { GameScreen } from "./src/screens/GameScreen";
 
 export default function App() {
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Qwizzle Mobile - Coming Soon</Text>
-    </View>
+    <ThemeProvider>
+      <GameScreen />
+    </ThemeProvider>
   );
 }

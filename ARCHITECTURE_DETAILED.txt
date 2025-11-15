@@ -1,0 +1,523 @@
+QWIZZLE - COMPREHENSIVE ARCHITECTURE ANALYSIS
+==============================================
+
+PROJECT TYPE: Monorepo (pnpm workspaces)
+FRAMEWORK: React 19 + TypeScript (Web), Expo/React Native (Mobile - placeholder)
+BUILD TOOL: Vite 5.2
+TEST FRAMEWORK: Vitest
+PACKAGE MANAGER: pnpm 9.0.0
+
+=====================================================
+1. MONOREPO STRUCTURE
+=====================================================
+
+/qwizzle/
+├── /apps/
+│   ├── web/          # Main React web application (Vite)
+│   └── mobile/       # Expo React Native scaffold (placeholder)
+├── /packages/
+│   ├── engine/       # Core game logic (shared library)
+│   └── wordlists/    # JSON word/acronym data (shared library)
+├── /tests/
+│   └── engine/       # Vitest unit tests
+├── /docs/
+│   └── operations.md # Deployment & operational cheatsheet
+├── Root files (legacy/reference versions)
+│   ├── index.html    # Original HTML version
+│   ├── style.css     # Original CSS
+│   └── acronyms.js   # Original JavaScript data
+└── Configuration files
+    ├── package.json  # Root monorepo config
+    ├── pnpm-workspace.yaml
+    ├── tsconfig.base.json
+    └── vitest.config.ts
+
+=====================================================
+2. FRAMEWORK & DEPENDENCIES
+=====================================================
+
+WEB APP (apps/web):
+  Runtime:
+    - React 19.0.0
+    - ReactDOM 19.0.0
+    - canvas-confetti 1.9.3 (win celebrations)
+    - @qwizzle/engine (internal package)
+    - @qwizzle/wordlists (internal package)
+  
+  Dev Tools:
+    - Vite 5.2.0 (build & dev server)
+    - @vitejs/plugin-react 4.3.0
+    - lightningcss 1.21.0
+    - TypeScript 5.4.0
+    - ESLint 8.57.0
+    - Vitest 1.6.0 (testing)
+
+MOBILE APP (apps/mobile):
+  - Expo 50.0.0
+  - React Native 0.74.0
+  - React 18.2.0
+  Status: PLACEHOLDER - "Coming Soon" placeholder component
+
+SHARED PACKAGES:
+  - @qwizzle/engine: Game logic library
+  - @qwizzle/wordlists: Data bundling library
+
+=====================================================
+3. WEB APP ARCHITECTURE (apps/web)
+=====================================================
+
+SOURCE STRUCTURE:
+apps/web/src/
+├── main.tsx              # React entry point
+├── App.tsx               # Root component
+├── theme/
+│   ├── theme.tsx         # ThemeProvider context + useTheme hook
+│   ├── tokens.css        # CSS variables for dark/light themes
+│   └── app.css           # Main application styling
+├── screens/
+│   └── GameScreen.tsx    # Primary game UI container (850+ lines)
+├── ui/
+│   ├── Board.tsx         # Guess grid component
+│   └── Keyboard.tsx      # On-screen keyboard component
+├── hooks/
+│   ├── useGameState.ts   # Core game state management (345 lines)
+│   └── useKeyboard.ts    # Keyboard event handling
+├── providers/
+│   ├── index.tsx         # Provider setup & context exports
+│   ├── WordProvider.ts   # Word provider interface
+│   ├── LocalListProvider.ts  # Local word list implementation
+│   └── HttpProvider.ts   # Optional HTTP-based word provider
+├── utils/
+│   ├── storage.ts        # localStorage wrapper
+│   └── dailySeed.ts      # Daily puzzle seed generation
+└── error/
+    └── ErrorBoundary.tsx # React error boundary
+
+TEMPLATE FILES:
+- index.html             # Vite HTML template
+- vite.config.ts         # Vite build config
+- eslint.config.mjs      # ESLint configuration
+- tsconfig.json          # TypeScript config
+- public/manifest.webmanifest  # PWA manifest
+
+=====================================================
+4. GAME ENGINE ARCHITECTURE (packages/engine)
+=====================================================
+
+CORE FILES: packages/engine/src/
+├── index.ts      # Public API exports
+├── types.ts      # TypeScript type definitions
+├── engine.ts     # Game logic implementation
+└── share.ts      # Share/export functionality
+
+KEY TYPES:
+- LetterMark: "correct" | "present" | "absent"
+- GameState: { target, guesses, maxGuesses }
+- GuessResult: { feedback, isWin }
+- LetterFeedback: { letter, mark }
+
+KEY FUNCTIONS:
+- newGame(target, maxGuesses=6): Initialize game
+- computeFeedback(guess, target): Calculate letter feedback
+- submitGuess(state, guess): Process a guess
+- shareGrid(rows): Convert feedback to emoji grid
+- shareText(mode, rows, solvedIn?, url?): Generate shareable text
+
+GAME MECHANICS:
+- 6 guesses maximum
+- Case-insensitive (normalized to uppercase)
+- Wordle-style feedback (correct/present/absent)
+- Handles duplicate letters correctly (two-pass algorithm)
+
+=====================================================
+5. DATA MANAGEMENT & WORDLISTS
+=====================================================
+
+WORDLIST STRUCTURE: packages/wordlists/src/
+
+acronyms.json:
+- Array of 160+ cybersecurity acronyms
+- Each item: { word, expansion, definition }
+- Example:
+  {
+    "word": "CNAPP",
+    "expansion": "Cloud-Native Application Protection Platform",
+    "definition": "A comprehensive security platform..."
+  }
+
+words.json:
+- Array of general vocabulary items
+- Format: { word, clue } or { word, definition }
+- Currently: ~3 items (REACT, VITE, STATE)
+- Expandable for additional vocab puzzles
+
+DATA FLOW:
+1. JSON files imported via ES modules with JSON assertions
+2. Exposed through packages/wordlists/src/index.ts
+3. Consumed by:
+   - useGameState hook (in memory normalization)
+   - LocalListProvider (in-memory word validation)
+   - HttpProvider (optional remote source)
+
+NORMALIZATION:
+- Words converted to uppercase
+- `definition` field fallback: definition ?? clue
+- `expansion` field (acronyms only)
+
+SELECTION LOGIC:
+- Daily mode: Hash-based seeding (dailySeed function)
+- Random mode: Math.random() selection
+
+=====================================================
+6. STATE MANAGEMENT & DATA FLOW
+=====================================================
+
+CONTEXT/PROVIDERS:
+
+ThemeProvider (apps/web/src/theme/theme.tsx):
+- Manages: theme state ("dark" | "light")
+- Persists: localStorage("qwizzle:theme")
+- Interface: useTheme() => { theme, toggleTheme }
+
+WordProviderProvider (apps/web/src/providers/index.tsx):
+- Manages: word provider instance selection
+- Routes: HTTP or LocalList based on env vars
+- Config: VITE_PROVIDER, VITE_API_BASE env vars
+- Interface: useWordProvider() => WordProvider
+
+useGameState Hook (apps/web/src/hooks/useGameState.ts):
+- Core game state for current puzzle
+- Stats persisted to localStorage("qwizzle:stats")
+- Manages:
+  * rows: string[] - current and previous guesses
+  * cursor: number - current row index
+  * feedbackRows: LetterFeedback[][] - guess feedback
+  * keyState: Record<string, LetterMark> - keyboard hints
+  * message: string - user-facing messages
+  * definition/expansion: current puzzle clues
+  * gameOver: boolean - game state
+  * stats: { played, wins, streak, best, score }
+  * result: { outcome, guesses, solution, feedbackRows }
+
+PERSISTED DATA (localStorage):
+- "qwizzle:theme" -> theme preference
+- "qwizzle:stats" -> GameStats object
+- "qwizzle:seen-help" -> help modal flag
+
+EVENT FLOW:
+User Input (keyboard/click)
+  ↓
+GameScreen handler
+  ↓
+useGameState callbacks (onChar, onBackspace, onEnter)
+  ↓
+useKeyboard hook (window keydown listener)
+  ↓
+Board/Keyboard UI update
+  ↓
+Engine logic (feedback calculation)
+  ↓
+Stats update + result display
+
+=====================================================
+7. THEMING SYSTEM
+=====================================================
+
+CSS VARIABLES (apps/web/src/theme/tokens.css):
+
+ROOT (Dark theme - default):
+  --bg: #000b05 (background)
+  --bg-glow: rgba(0, 204, 102, 0.18) (glow effect)
+  --fg: #e6fbee (foreground/text)
+  --muted: #56c97f (secondary text)
+  --accent: #00cc66 (primary accent)
+  --accent-fg: #00150b (text on accent)
+  --success: #00cc66 (success color)
+  --danger: #f45b5b (error/danger color)
+  --surface: #001509 (card backgrounds)
+  --surface-border: #014f29 (card borders)
+  --t-correct: #00cc66 (correct tile)
+  --t-present: #f4d35e (present tile)
+  --t-absent: #013518 (absent tile)
+  
+  Responsive sizing:
+  --tile: clamp(3rem, 7vw, 4rem)
+  --gap: clamp(0.35rem, 2vw, 0.55rem)
+  --pad: clamp(1rem, 4vw, 2.4rem)
+
+LIGHT VARIANT (:root[data-theme='light']):
+  All colors inverted/adjusted for light backgrounds
+  Same structure, different palette
+
+THEME TOGGLE:
+1. <html data-theme="dark|light"> attribute
+2. Stored in localStorage("qwizzle:theme")
+3. Loaded on app init (defaults to "dark")
+4. Toggle available in header nav
+
+=====================================================
+8. TESTING SETUP
+=====================================================
+
+VITEST CONFIGURATION:
+- File: /vitest.config.ts
+- Glob pattern: tests/**/*.test.ts
+- Globals: true (describe, it, expect available)
+- Aliases configured for engine & wordlists
+
+TEST FILES LOCATION: /tests/engine/
+
+Current Tests: edge-cases.test.ts
+- Repeated letter handling
+- Wrong-length validation
+- Engine error cases
+
+Test Execution:
+- Command: pnpm test (or npx vitest run)
+- Scope: Engine package tests
+- Web app: npx vitest run --passWithNoTests
+- Mobile: No tests
+
+Test Coverage: Basic (2 test cases)
+
+=====================================================
+9. BUILD & DEPLOYMENT
+=====================================================
+
+VITE CONFIG (apps/web/vite.config.ts):
+- Port: 5173 (dev server)
+- Output: dist/ directory
+- Plugins: @vitejs/plugin-react
+- Aliases:
+  - @ -> src/
+  - @qwizzle/providers -> src/providers
+  - @qwizzle/utils -> src/utils
+
+BUILD COMMANDS:
+Root level:
+  - pnpm dev:web -> corepack pnpm --filter qwizzle-web dev
+  - pnpm build:web -> builds for production
+  - pnpm preview:web -> preview production build
+  - pnpm size -> build + list asset sizes
+  - pnpm test -> run vitest
+  - pnpm lint -> run eslint on web app
+
+Per-package:
+  - npm run dev/build/preview/test/lint
+
+BUILD ARTIFACT:
+- Destination: apps/web/dist/
+- Size budget: ~200 KB gzipped
+- Includes: JS chunks, CSS, assets
+
+CI/CD: Not configured yet (GitHub ready)
+
+=====================================================
+10. ACCESSIBILITY & UX FEATURES
+=====================================================
+
+KEYBOARD SUPPORT:
+- Full keyboard input: A-Z letters
+- Enter to submit guess
+- Backspace to delete
+- Visual keyboard (clickable buttons)
+- Can disable capture while modals open
+
+ARIA LANDMARKS:
+- role="dialog" for modals
+- role="status" with aria-live="polite"
+- role="grid", role="row", role="gridcell" for board
+- role="region" sections with labels
+- aria-label for buttons and lists
+- Proper heading hierarchy
+
+RESPONSIVE DESIGN:
+- Mobile-first CSS
+- Clamp() for fluid spacing/sizing
+- Safe area insets support (notches)
+- Touch-action: manipulation
+- -webkit-tap-highlight-color disabled
+
+MODALS:
+- Help (tutorial)
+- Stats (game statistics)
+- Result (win/loss screen)
+- All have close buttons and escape support
+
+=====================================================
+11. CONFIGURATION & ENVIRONMENT
+=====================================================
+
+ENVIRONMENT VARIABLES:
+
+Web app supports:
+  VITE_PROVIDER: "http" | undefined
+  VITE_API_BASE: base URL for HTTP provider
+
+When HTTP provider enabled:
+  GET /api/word?category=<acronym|vocab>
+  GET /api/validate?category=<acronym|vocab>&guess=<word>
+
+DEFAULT: LocalListProvider (embedded JSON)
+
+=====================================================
+12. ERROR HANDLING
+=====================================================
+
+Engine Errors:
+- "TARGET_REQUIRED" - missing puzzle target
+- "WRONG_LENGTH" - guess not matching word length
+- "EMPTY_WORD_LIST" - category has no words
+
+UI Errors:
+- "Not enough letters" - incomplete guess
+- "Not in list" - guess not in valid words
+- Modal error boundary with reload button
+- Generic error state in GameScreen
+
+LOCAL STORAGE RESILIENCE:
+- Graceful fallback to defaults on read failure
+- Console warning on storage failure
+- Continues game even if persistence fails
+
+=====================================================
+13. ASSETS & ICONS
+=====================================================
+
+CURRENT SETUP:
+- apps/web/public/icons/ (empty, .gitkeep only)
+- apps/web/public/manifest.webmanifest
+- No SVG/PNG icons imported yet
+- Emoji used for UI (🔐, 🟩, 🟨, ⬛)
+
+PWA MANIFEST:
+- Name: Qwizzle
+- Short name: Qwizzle
+- Display: standalone
+- Icons: /icons/icon-192.png, /icons/icon-512.png
+- Theme color: #2563eb
+- Background: #111827
+
+USAGE:
+- Emoji in headers/buttons
+- No image assets loaded
+- Icons directory ready for PNG files
+
+=====================================================
+14. PACKAGE ORGANIZATION & EXPORTS
+=====================================================
+
+@qwizzle/engine exports:
+- Types: LetterMark, LetterFeedback, GuessResult, GameState
+- Functions: newGame, computeFeedback, submitGuess
+- Sharing: shareGrid, shareText
+
+@qwizzle/wordlists exports:
+- acronyms: array of acronym objects
+- words: array of word objects
+
+@qwizzle/providers exports (re-exports from index.tsx):
+- WordProvider interface
+- Category type
+- WordItem interface
+- useWordProvider hook
+- WordProviderProvider component
+- LocalListProvider implementation
+- createHttpProvider function
+
+=====================================================
+15. SHARING FUNCTIONALITY
+=====================================================
+
+SHARE TEXT FORMAT:
+"Qwizzle <mode> <solved>/<max>\n<grid>\n<optional-url>"
+
+Example:
+"Qwizzle acronym 3/6
+🟩🟨⬛🟩🟩
+⬛🟨🟩⬛🟩
+🟩🟩🟩🟩🟩
+https://qwizzle.local"
+
+SHARING METHODS:
+1. Native share API (navigator.share)
+2. Clipboard copy (navigator.clipboard)
+3. Manual copy fallback
+
+TRIGGERING:
+- Result modal "Share" button
+- Conditional on game completion
+
+=====================================================
+16. MOBILE APP SCAFFOLD
+=====================================================
+
+STATUS: Placeholder
+- Expo 50.0.0 scaffolding
+- React Native 0.74.0
+- Single "Coming Soon" component
+- Not integrated with engine/wordlists yet
+
+FILE: apps/mobile/App.tsx
+- Simple View with centered Text
+
+NEXT STEPS:
+- Integrate @qwizzle/engine
+- Integrate @qwizzle/wordlists
+- Port game logic to React Native
+- Implement native platform features
+
+=====================================================
+17. LINTING & CODE QUALITY
+=====================================================
+
+ESLINT CONFIG: apps/web/eslint.config.mjs
+- Base: @eslint/js.configs.recommended
+- Parser: @typescript-eslint/parser
+- Plugins: typescript-eslint, react-hooks
+- Rules:
+  * @typescript-eslint/consistent-type-imports: warn
+  * @typescript-eslint/no-unused-vars: warn (args starting with _)
+  * react-hooks/rules-of-hooks: error
+  * react-hooks/exhaustive-deps: warn
+- Coverage: apps/web/src only
+
+ENGINE & WORDLISTS:
+- No linting configured (placeholder scripts)
+- TODO comments in package.json
+
+=======================================================
+KEY FILES BY RESPONSIBILITY
+=======================================================
+
+GAME LOGIC:
+- packages/engine/src/engine.ts (guess feedback)
+- packages/engine/src/share.ts (emoji sharing)
+- apps/web/src/hooks/useGameState.ts (state machine)
+
+DATA:
+- packages/wordlists/src/acronyms.json (160+ items)
+- packages/wordlists/src/words.json (3 items)
+
+UI RENDERING:
+- apps/web/src/screens/GameScreen.tsx (main container)
+- apps/web/src/ui/Board.tsx (grid display)
+- apps/web/src/ui/Keyboard.tsx (input buttons)
+
+THEMING:
+- apps/web/src/theme/theme.tsx (context/toggle)
+- apps/web/src/theme/tokens.css (variables)
+- apps/web/src/theme/app.css (component styles)
+
+STATE & DATA:
+- apps/web/src/hooks/useGameState.ts (game state)
+- apps/web/src/providers/LocalListProvider.ts (word source)
+- apps/web/src/utils/storage.ts (persistence)
+- apps/web/src/utils/dailySeed.ts (daily puzzle logic)
+
+CONFIGURATION:
+- tsconfig.base.json (path aliases)
+- vite.config.ts (build config)
+- vitest.config.ts (test config)
+- eslint.config.mjs (linting)
+

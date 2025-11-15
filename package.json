@@ -5,17 +5,47 @@
   "description": "Qwizzle monorepo",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "dev": "corepack pnpm --filter qwizzle-web dev",
     "dev:web": "corepack pnpm --filter qwizzle-web dev",
+    "dev:mobile": "corepack pnpm --filter qwizzle-mobile start",
+    "build": "corepack pnpm --filter qwizzle-web build",
     "build:web": "corepack pnpm --filter qwizzle-web build",
+    "preview": "corepack pnpm --filter qwizzle-web preview",
     "preview:web": "corepack pnpm --filter qwizzle-web preview",
     "test": "vitest run",
+    "test:engine": "vitest run",
+    "test:plugins": "corepack pnpm --filter @qwizzle/plugins test",
+    "test:plugins:coverage": "corepack pnpm --filter @qwizzle/plugins test:coverage",
+    "test:mobile": "corepack pnpm --filter qwizzle-mobile test",
+    "test:watch": "vitest",
+    "test:all": "corepack pnpm -r test",
     "lint": "corepack pnpm -r lint",
+    "lint:web": "corepack pnpm --filter qwizzle-web lint",
+    "type-check": "corepack pnpm -r type-check",
     "start:mobile": "corepack pnpm --filter qwizzle-mobile start",
-    "size": "corepack pnpm --filter qwizzle-web build && ls -lh apps/web/dist/assets/*.js | awk '{print $5, $9}'"
+    "size": "corepack pnpm --filter qwizzle-web build && ls -lh apps/web/dist/assets/*.js | awk '{print $5, $9}'",
+    "clean": "corepack pnpm -r clean && rm -rf node_modules",
+    "validate": "corepack pnpm type-check && corepack pnpm lint && corepack pnpm test"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
+    "@vitest/coverage-v8": "^1.2.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
+  },
+  "keywords": [
+    "wordle",
+    "word-game",
+    "puzzle",
+    "react",
+    "react-native",
+    "extensible",
+    "plugins"
+  ],
+  "author": "Adil Leghari",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
   }
 }
