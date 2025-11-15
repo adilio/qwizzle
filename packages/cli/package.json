@@ -1,0 +1,25 @@
+{
+  "name": "@qwizzle/cli",
+  "version": "1.0.0",
+  "description": "CLI tools for Qwizzle plugin development",
+  "type": "module",
+  "bin": {
+    "qwizzle": "./bin/qwizzle.js"
+  },
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "validate": "node ./bin/qwizzle.js validate"
+  },
+  "dependencies": {
+    "@qwizzle/plugins": "workspace:*",
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.4.0"
+  }
+}
