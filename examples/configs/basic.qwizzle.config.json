@@ -1,0 +1,12 @@
+{
+  "wordLists": [
+    {
+      "type": "gist",
+      "gistId": "your-gist-id-here",
+      "filename": "words.json",
+      "category": "custom"
+    }
+  ],
+  "theme": "qwizzle-dark",
+  "categories": ["acronym", "vocab", "custom"]
+}

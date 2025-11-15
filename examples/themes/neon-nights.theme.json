@@ -1,0 +1,55 @@
+{
+  "id": "neon-nights",
+  "name": "Neon Nights",
+  "description": "A vibrant neon-inspired theme with electric colors",
+  "version": "1.0.0",
+  "author": "Qwizzle Team",
+  "colors": {
+    "bg": "#0d0221",
+    "bgGlow": "rgba(255, 0, 255, 0.15)",
+    "fg": "#f0f3f5",
+    "muted": "#b392f0",
+    "accent": "#ff00ff",
+    "accentFg": "#ffffff",
+    "success": "#00ff41",
+    "danger": "#ff006e",
+    "surface": "#1a0933",
+    "surfaceBorder": "#7209b7",
+    "tBase": "#1a0933",
+    "tBorder": "#7209b7",
+    "tCorrect": "#00ff41",
+    "tPresent": "#ffea00",
+    "tAbsent": "#240046",
+    "keyBorder": "#7209b7"
+  },
+  "lightColors": {
+    "bg": "#ffffff",
+    "bgGlow": "rgba(255, 0, 255, 0.05)",
+    "fg": "#240046",
+    "muted": "#7209b7",
+    "accent": "#c77dff",
+    "accentFg": "#ffffff",
+    "success": "#00c853",
+    "danger": "#ff006e",
+    "surface": "#f8f0ff",
+    "surfaceBorder": "#e0aaff",
+    "tBase": "#ffffff",
+    "tBorder": "#c77dff",
+    "tCorrect": "#00c853",
+    "tPresent": "#ffa726",
+    "tAbsent": "#f0e6ff",
+    "keyBorder": "#9d4edd"
+  },
+  "typography": {
+    "primaryFont": "Rajdhani, sans-serif",
+    "monoFont": "Share Tech Mono, monospace",
+    "baseFontSize": "16px"
+  },
+  "sizing": {
+    "tile": "clamp(3.5rem, 8vw, 4.5rem)",
+    "gap": "clamp(0.4rem, 2.5vw, 0.6rem)",
+    "padding": "clamp(1.2rem, 5vw, 2.8rem)",
+    "borderRadius": "8px"
+  },
+  "customCss": "body { text-shadow: 0 0 10px rgba(255, 0, 255, 0.5); }"
+}
