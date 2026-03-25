@@ -13,7 +13,6 @@ Crack the cybersecurity acronym hiding behind each clue, grow your streak, and s
 - **Accessibility-minded UI** - Keyboard-first controls, aria-live messaging, and responsive layout.
 - **Extensible Plugin System** - Plug in custom word lists from GitHub Gists, APIs, or local data.
 - **Custom Themes** - Create and apply your own color schemes, fonts, and icons via JSON config.
-- **Mobile Support** - Full React Native app with the same great experience on iOS and Android.
 - **Fully Tested** - Comprehensive test suite with 95%+ coverage.
 
 ---
@@ -24,7 +23,6 @@ Crack the cybersecurity acronym hiding behind each clue, grow your streak, and s
 qwizzle/
   apps/
     web/         # Vite + React client
-    mobile/      # React Native/Expo mobile app
   packages/
     engine/      # Core game logic and share helpers
     wordlists/   # JSON data for acronyms + vocab
@@ -78,12 +76,6 @@ Open http://localhost:5173 and start guessing.
 pnpm build          # Build web app
 pnpm preview:web    # Preview production bundle
 pnpm size           # Build and list asset sizes (target: ~200 KB gzipped)
-```
-
-### Mobile app
-
-```bash
-pnpm dev:mobile     # or: corepack pnpm --filter qwizzle-mobile start
 ```
 
 ---
