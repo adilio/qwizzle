@@ -22,15 +22,18 @@ qwizzle/
   apps/
     web/               # Vite + React app
       src/
-        engine/        # Game logic and share helpers
-        wordlists/     # JSON data for acronyms + vocab
-        providers/     # Word provider interface + implementations
+        engine/        # Pure game logic and share helpers
+        wordlists/     # JSON data (acronyms.json, words.json) + barrel index
+        providers/     # WordProvider interface + LocalList, Http, URL, Gist impls
         hooks/         # useGameState, useKeyboard
         screens/       # GameScreen
         ui/            # Board, Keyboard
-        theme/         # ThemeProvider, CSS tokens
+        components/    # Shared UI (LoadingSpinner)
+        theme/         # ThemeProvider, applyTheme, CSS tokens
+        error/         # ErrorBoundary
         utils/         # storage, dailySeed
-  tests/               # Engine unit tests
+  tests/
+    engine/            # Engine unit tests
 ```
 
 ---
@@ -55,8 +58,6 @@ corepack pnpm install
 ### Run the web app
 
 ```bash
-corepack pnpm --filter qwizzle-web dev
-# or from root:
 pnpm dev
 ```
 
@@ -65,9 +66,9 @@ Open http://localhost:5173 and start guessing.
 ### Production build
 
 ```bash
-pnpm build          # Build web app
-pnpm preview:web    # Preview production bundle
-pnpm size           # Build and list asset sizes (target: ~200 KB gzipped)
+pnpm build      # Build web app
+pnpm preview    # Preview production bundle
+pnpm size       # Build and list asset sizes (target: ~200 KB gzipped)
 ```
 
 ---
@@ -77,10 +78,10 @@ pnpm size           # Build and list asset sizes (target: ~200 KB gzipped)
 ### React Component Tree
 
 ```
-App
-└── ThemeProvider
-    └── WordProviderProvider
-        └── ErrorBoundary
+App({ config? })
+└── ErrorBoundary
+    └── ThemeProvider
+        └── WordProviderProvider
             └── GameScreen
                 ├── Header (title, help, stats, theme toggle)
                 ├── Controls (play, hint, mode toggle)
@@ -96,13 +97,16 @@ App
 
 | Responsibility | File |
 |---|---|
+| App entry + config | `apps/web/src/App.tsx` |
 | Game logic (feedback algorithm) | `apps/web/src/engine/engine.ts` |
 | Share/export (emoji grid) | `apps/web/src/engine/share.ts` |
 | Core game state hook | `apps/web/src/hooks/useGameState.ts` |
 | Main UI container | `apps/web/src/screens/GameScreen.tsx` |
 | Word provider interface | `apps/web/src/providers/WordProvider.ts` |
+| Provider context + hook | `apps/web/src/providers/index.tsx` |
 | Daily puzzle seeding | `apps/web/src/utils/dailySeed.ts` |
 | CSS variables / theming | `apps/web/src/theme/tokens.css` |
+| Runtime theme injection | `apps/web/src/theme/applyTheme.ts` |
 
 ### Game engine
 
@@ -128,7 +132,7 @@ interface WordItem    { word: string; clue?: string; expansion?: string; definit
 
 ### Word provider pattern
 
-Two built-in implementations share a common interface:
+All word providers satisfy a single interface:
 
 ```typescript
 interface WordProvider {
@@ -137,22 +141,133 @@ interface WordProvider {
 }
 ```
 
-- **LocalListProvider** (default) — in-memory JSON, works offline
-- **HttpProvider** (optional) — remote API; enable via `VITE_PROVIDER=http` + `VITE_API_BASE=<url>`
+Four built-in implementations:
 
-### Theming
+| Provider | Description |
+|---|---|
+| `LocalListProvider` | Default — in-memory JSON, works offline |
+| `createHttpProvider(baseUrl)` | REST API via `VITE_PROVIDER=http` + `VITE_API_BASE` |
+| `createUrlProvider(url, category, headers?)` | Fetch a JSON word list from any URL |
+| `createGistProvider(gistId, category, filename?)` | Fetch a JSON word list from a GitHub Gist |
 
-Themes are CSS variable sets defined in `tokens.css`. Dark is the default:
+The active provider is injected via `WordProviderProvider` and consumed with `useWordProvider()`.
 
-```css
---bg: #000b05      --fg: #e6fbee      --accent: #00cc66
---t-correct: #00cc66  --t-present: #f4d35e  --t-absent: #013518
---tile: clamp(3rem, 7vw, 4rem)        /* Fluid sizing */
+---
+
+## Extensibility
+
+### Custom word lists
+
+Pass any `WordProvider` through `AppConfig` to replace the built-in dataset at runtime:
+
+```typescript
+import App from "./App";
+import { createUrlProvider } from "./providers";
+
+const myProvider = createUrlProvider(
+  "https://example.com/my-words.json",
+  "acronym",
+);
+
+<App config={{ wordProvider: myProvider }} />
 ```
 
-Toggle sets `html[data-theme="light"]`, persisted to `localStorage("qwizzle:theme")`.
+`createUrlProvider` accepts an optional `headers` map for authenticated endpoints.
 
-### Data persistence
+`createGistProvider` resolves the raw URL from the GitHub Gist API — useful for
+hosting word lists without a server:
+
+```typescript
+import { createGistProvider } from "./providers";
+
+const provider = createGistProvider(
+  "abc123gistid",   // Gist ID
+  "acronym",
+  "my-words.json",  // optional: specific filename within the gist
+);
+```
+
+Word lists must be a JSON array (or an object with a `words` or `data` array) where
+each entry has at minimum a `word` field:
+
+```json
+[
+  { "word": "SOC", "definition": "Security Operations Center" },
+  { "word": "IOC", "expansion": "Indicator of Compromise" }
+]
+```
+
+`word` is normalised to uppercase automatically. `definition` falls back to `clue` if absent.
+
+You can also implement `WordProvider` directly for fully custom behaviour (database
+lookups, weighted randomisation, A/B testing, etc.) and pass it the same way.
+
+### Custom themes
+
+Call `applyTheme` to inject a `<style>` block that overrides the CSS token defaults.
+Both dark and optional light overrides are supported:
+
+```typescript
+import { applyTheme } from "./theme/applyTheme";
+import type { CustomTheme } from "./theme/applyTheme";
+
+const myTheme: CustomTheme = {
+  colors: {
+    bg: "#0d0d0d",
+    fg: "#f0f0f0",
+    accent: "#7c3aed",
+    muted: "#a78bfa",
+    tCorrect: "#7c3aed",
+    tPresent: "#f59e0b",
+    tAbsent: "#1e1e1e",
+  },
+  lightColors: {
+    bg: "#ffffff",
+    fg: "#111111",
+    accent: "#7c3aed",
+  },
+};
+
+// standalone
+applyTheme(myTheme);
+
+// or via AppConfig (applied on mount)
+<App config={{ theme: myTheme }} />
+```
+
+The full set of overridable color keys:
+
+| Key | CSS variable | Role |
+|---|---|---|
+| `bg` | `--bg` | Page background |
+| `bgGlow` | `--bg-glow` | Ambient glow behind board |
+| `fg` | `--fg` | Primary text |
+| `muted` | `--muted` | Secondary text |
+| `accent` | `--accent` | Brand / highlight |
+| `accentFg` | `--accent-fg` | Text on accent backgrounds |
+| `success` | `--success` | Win state |
+| `danger` | `--danger` | Error state |
+| `surface` | `--surface` | Card / modal background |
+| `surfaceBorder` | `--surface-border` | Card borders |
+| `tCorrect` | `--t-correct` | Correct letter tile |
+| `tPresent` | `--t-present` | Present letter tile |
+| `tAbsent` | `--t-absent` | Absent letter tile |
+
+Styles are injected into `#qwizzle-custom-theme` in `<head>` and override the
+defaults in `tokens.css`. The dark/light toggle still works — provide `lightColors`
+to customise that variant too.
+
+---
+
+## Theming internals
+
+The default palette lives in `tokens.css`. Dark is the default; light is activated
+by `html[data-theme="light"]`, persisted to `localStorage("qwizzle:theme")`.
+`ThemeProvider` manages the toggle and `applyTheme` handles runtime injection.
+
+---
+
+## Data persistence
 
 ```
 localStorage:
@@ -161,11 +276,13 @@ localStorage:
   "qwizzle:seen-help"  → "true"
 ```
 
-### Daily puzzle seeding
+## Daily puzzle seeding
 
-`dailySeed(category, listLength)` hashes `"${category}-${YYYY-MM-DD}"` with djb2 and mods by list length — same category + date always produces the same index, rotating at midnight UTC.
+`dailySeed(category, listLength)` hashes `"${category}-${YYYY-MM-DD}"` with djb2
+and mods by list length — same category + date always produces the same index,
+rotating at midnight UTC.
 
-### Error handling
+## Error handling
 
 | Layer | Errors |
 |---|---|
@@ -183,13 +300,6 @@ pnpm test        # Run engine tests (Vitest)
 pnpm test:watch  # Watch mode
 pnpm lint        # ESLint on web app
 ```
-
----
-
-## Customization
-
-- **Wordlists** — Edit `apps/web/src/wordlists/acronyms.json` (fields: `word`, `definition`, `expansion`).
-- **Themes** — Update CSS variables in `apps/web/src/theme/tokens.css`; toggle persists to localStorage.
 
 ---
 
