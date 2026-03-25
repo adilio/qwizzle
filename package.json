@@ -6,23 +6,12 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "corepack pnpm --filter qwizzle-web dev",
-    "dev:web": "corepack pnpm --filter qwizzle-web dev",
     "build": "corepack pnpm --filter qwizzle-web build",
-    "build:web": "corepack pnpm --filter qwizzle-web build",
     "preview": "corepack pnpm --filter qwizzle-web preview",
-    "preview:web": "corepack pnpm --filter qwizzle-web preview",
     "test": "vitest run",
-    "test:engine": "vitest run",
-    "test:plugins": "corepack pnpm --filter @qwizzle/plugins test",
-    "test:plugins:coverage": "corepack pnpm --filter @qwizzle/plugins test:coverage",
     "test:watch": "vitest",
-    "test:all": "corepack pnpm -r test",
-    "lint": "corepack pnpm -r lint",
-    "lint:web": "corepack pnpm --filter qwizzle-web lint",
-    "type-check": "corepack pnpm -r type-check",
-    "size": "corepack pnpm --filter qwizzle-web build && ls -lh apps/web/dist/assets/*.js | awk '{print $5, $9}'",
-    "clean": "corepack pnpm -r clean && rm -rf node_modules",
-    "validate": "corepack pnpm type-check && corepack pnpm lint && corepack pnpm test"
+    "lint": "corepack pnpm --filter qwizzle-web lint",
+    "size": "corepack pnpm --filter qwizzle-web build && ls -lh apps/web/dist/assets/*.js | awk '{print $5, $9}'"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
@@ -34,9 +23,7 @@
     "wordle",
     "word-game",
     "puzzle",
-    "react",
-    "extensible",
-    "plugins"
+    "react"
   ],
   "author": "Adil Leghari",
   "license": "MIT",

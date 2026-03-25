@@ -1,4 +1,4 @@
-import type { LetterFeedback } from "@qwizzle/engine";
+import type { LetterFeedback } from "../engine";
 import { forwardRef } from "react";
 
 interface BoardProps {

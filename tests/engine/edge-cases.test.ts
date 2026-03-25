@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFeedback, newGame, submitGuess } from "@qwizzle/engine";
+import { computeFeedback, newGame, submitGuess } from "../../apps/web/src/engine";
 
 describe("engine edge cases", () => {
   it("handles repeated letters correctly", () => {

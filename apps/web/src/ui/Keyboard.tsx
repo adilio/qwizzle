@@ -1,4 +1,4 @@
-import type { LetterMark } from "@qwizzle/engine";
+import type { LetterMark } from "../engine";
 
 const KEY_ROWS: Array<Array<string>> = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],

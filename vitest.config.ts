@@ -11,8 +11,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@qwizzle/engine": resolve(rootDir, "packages/engine/src/index.ts"),
-      "@qwizzle/wordlists": resolve(rootDir, "packages/wordlists/src/index.ts"),
+      "@/engine": resolve(rootDir, "apps/web/src/engine/index.ts"),
+      "@/wordlists": resolve(rootDir, "apps/web/src/wordlists/index.ts"),
     },
   },
 });

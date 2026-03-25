@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import confetti from "canvas-confetti";
-import { shareText } from "@qwizzle/engine";
+import { shareText } from "../engine";
 import { Board } from "../ui/Board";
 import { Keyboard } from "../ui/Keyboard";
 import { useKeyboard } from "../hooks/useKeyboard";

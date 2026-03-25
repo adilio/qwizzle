@@ -1,4 +1,4 @@
-import { acronyms, words } from "@qwizzle/wordlists";
+import { acronyms, words } from "../wordlists";
 import type { Category, WordItem, WordProvider } from "./WordProvider";
 
 interface RawWordItem {

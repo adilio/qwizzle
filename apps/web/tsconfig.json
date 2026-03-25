@@ -4,9 +4,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts", "vitest.setup.ts"],
-  "references": [
-    { "path": "../../packages/engine" },
-    { "path": "../../packages/wordlists" }
-  ]
+  "include": ["src", "vite.config.ts"]
 }

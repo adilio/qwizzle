@@ -11,35 +11,27 @@ Crack the cybersecurity acronym hiding behind each clue, grow your streak, and s
 - **Shareable Results** - One-tap clipboard/share support using the familiar emoji grid.
 - **Theming** - Dark and light themes with instant toggle and persistence.
 - **Accessibility-minded UI** - Keyboard-first controls, aria-live messaging, and responsive layout.
-- **Extensible Plugin System** - Plug in custom word lists from GitHub Gists, APIs, or local data.
-- **Custom Themes** - Create and apply your own color schemes, fonts, and icons via JSON config.
-- **Fully Tested** - Comprehensive test suite with 95%+ coverage.
+- **Fully Tested** - Engine unit tests with Vitest.
 
 ---
 
-## Monorepo Layout
+## Project Layout
 
 ```
 qwizzle/
   apps/
-    web/         # Vite + React client
-  packages/
-    engine/      # Core game logic and share helpers
-    wordlists/   # JSON data for acronyms + vocab
-    plugins/     # Extensibility system (providers, themes, registry)
-    cli/         # Plugin validation CLI tool
-  examples/      # Sample configs, themes, and word lists
-  tests/         # Comprehensive test suites
+    web/               # Vite + React app
+      src/
+        engine/        # Game logic and share helpers
+        wordlists/     # JSON data for acronyms + vocab
+        providers/     # Word provider interface + implementations
+        hooks/         # useGameState, useKeyboard
+        screens/       # GameScreen
+        ui/            # Board, Keyboard
+        theme/         # ThemeProvider, CSS tokens
+        utils/         # storage, dailySeed
+  tests/               # Engine unit tests
 ```
-
-### Key packages
-
-| Package | Description |
-|---|---|
-| `@qwizzle/engine` | Pure TypeScript engine: guesses, feedback, sharing |
-| `@qwizzle/wordlists` | Bundled JSON word data — extend to add categories |
-| `@qwizzle/plugins` | Plugin system for custom word lists, themes, and icons |
-| `@qwizzle/cli` | CLI tool for validating and scaffolding plugins |
 
 ---
 
@@ -104,8 +96,8 @@ App
 
 | Responsibility | File |
 |---|---|
-| Game logic (feedback algorithm) | `packages/engine/src/engine.ts` |
-| Share/export (emoji grid) | `packages/engine/src/share.ts` |
+| Game logic (feedback algorithm) | `apps/web/src/engine/engine.ts` |
+| Share/export (emoji grid) | `apps/web/src/engine/share.ts` |
 | Core game state hook | `apps/web/src/hooks/useGameState.ts` |
 | Main UI container | `apps/web/src/screens/GameScreen.tsx` |
 | Word provider interface | `apps/web/src/providers/WordProvider.ts` |
@@ -184,240 +176,19 @@ localStorage:
 
 ---
 
-## Plugin System
-
-### Overview
-
-The `@qwizzle/plugins` package provides a full extensibility layer: custom word lists, themes, and icons — no build step required.
-
-```
-packages/plugins/src/
-├── types.ts                      # Core type definitions
-├── registry.ts                   # PluginRegistry
-├── loader.ts                     # Config loader
-├── providers/
-│   ├── GistProvider.ts           # GitHub Gist integration
-│   ├── UrlProvider.ts            # Generic JSON URL/API
-│   ├── LocalProvider.ts          # In-memory data
-│   └── MultiSourceProvider.ts    # Combine multiple providers
-└── themes/
-    ├── ThemeLoader.ts            # Dynamic CSS injection
-    └── defaultThemes.ts          # Built-in themes
-```
-
-### Quick start
-
-1. Create a `qwizzle.config.json`:
-
-```json
-{
-  "wordLists": [
-    {
-      "type": "gist",
-      "gistId": "your-gist-id",
-      "category": "custom"
-    }
-  ],
-  "themes": [
-    {
-      "id": "my-theme",
-      "name": "My Theme",
-      "colors": {
-        "bg": "#0a0e27",
-        "fg": "#f2f2f2",
-        "accent": "#ff006e",
-        "muted": "#9d4edd",
-        "tCorrect": "#00f5d4",
-        "tPresent": "#ffbe0b",
-        "tAbsent": "#2d3250"
-      }
-    }
-  ],
-  "theme": "my-theme"
-}
-```
-
-2. Load in your app:
-
-```tsx
-import config from "./qwizzle.config.json";
-import { PluginAwareProvider } from "./providers/PluginAwareProvider";
-
-<PluginAwareProvider config={config}>
-  <App />
-</PluginAwareProvider>
-```
-
-### Word list providers
-
-#### GitHub Gist
-
-```json
-{
-  "type": "gist",
-  "gistId": "abc123def456",
-  "filename": "words.json",
-  "category": "frontend"
-}
-```
-
-Gist file format:
-```json
-[
-  { "word": "REACT", "expansion": "...", "definition": "..." }
-]
-```
-
-#### URL / JSON API
-
-```json
-{
-  "type": "url",
-  "url": "https://example.com/api/words.json",
-  "category": "custom",
-  "headers": { "Authorization": "Bearer token" }
-}
-```
-
-Accepts array, `{ "words": [...] }`, or `{ "data": [...] }` response shapes.
-
-#### Local (in-memory)
-
-```json
-{
-  "type": "local",
-  "category": "custom",
-  "data": [
-    { "word": "CUSTOM", "definition": "A custom word" }
-  ]
-}
-```
-
-### Word item schema
-
-| Field | Required | Description |
-|---|---|---|
-| `word` | Yes | The word to guess (uppercased automatically) |
-| `definition` | Recommended | Explanation shown as the puzzle clue |
-| `expansion` | Optional | Full form of acronym |
-| `clue` | Optional | Alternate hint field |
-
-### Theme schema
-
-```json
-{
-  "id": "my-theme",
-  "name": "My Theme",
-  "description": "...",
-  "version": "1.0.0",
-  "author": "...",
-  "colors": {
-    "bg": "#1a1a2e",       "fg": "#eee",          "muted": "#888",
-    "accent": "#e94560",   "accentFg": "#fff",
-    "surface": "#16213e",  "surfaceBorder": "#0f3460",
-    "tCorrect": "#00ff00", "tPresent": "#ffcc00",  "tAbsent": "#1a1a2e",
-    "tBase": "#16213e",    "tBorder": "#0f3460",   "keyBorder": "#0f3460"
-  },
-  "lightColors": { "bg": "#fff", "fg": "#1a1a2e", "..." : "..." },
-  "typography": { "primaryFont": "Inter, sans-serif" },
-  "sizing": { "tile": "clamp(3rem, 7vw, 4rem)" },
-  "icon": "https://example.com/icon.png"
-}
-```
-
-Required colors: `bg`, `fg`, `accent`, `muted`, `tCorrect`, `tPresent`, `tAbsent`.
-
-### Programmatic API
-
-```typescript
-import {
-  createGistProvider, createUrlProvider,
-  createLocalProvider, createMultiSourceProvider,
-  createThemeLoader,
-  loadConfig, loadConfigFromUrl, globalRegistry,
-} from "@qwizzle/plugins";
-
-// Providers
-const provider = createGistProvider({ gistId: "abc123", category: "tech" });
-const multi    = createMultiSourceProvider({
-  providers: [provider, createUrlProvider({ url: "...", category: "extra" })],
-  category: "combined",
-  strategy: "random", // "round-robin" | "weighted"
-});
-
-// Themes
-const loader = createThemeLoader();
-loader.loadTheme(myTheme);
-await loader.loadThemeFromUrl("https://example.com/theme.json");
-loader.setPrefersDark(true);
-
-// Config loading
-await loadConfig(config);
-const theme    = globalRegistry.getTheme("my-theme");
-const provider = globalRegistry.getWordProvider("tech");
-```
-
-### Plugin registry
-
-```typescript
-class PluginRegistry {
-  register(plugin, type, enabled)
-  unregister(pluginId)
-  enable(pluginId) / disable(pluginId)
-  getWordProvider(category)
-  getTheme(themeId)
-  getCategories() / getAllThemes()
-  getStats()
-}
-```
-
-### Performance
-
-- Remote word lists cached for 5 minutes
-- Plugin registration: <1ms, theme loading: <5ms
-- Plugin system bundle overhead: ~25 KB gzipped
-
----
-
-## CLI Tool
-
-`@qwizzle/cli` validates and scaffolds plugins:
-
-```bash
-# Validate a word list, theme, or config
-npx @qwizzle/cli validate wordlist.json
-npx @qwizzle/cli validate theme.json --type theme
-npx @qwizzle/cli validate qwizzle.config.json
-
-# Scaffold from templates
-npx @qwizzle/cli create wordlist my-words
-npx @qwizzle/cli create theme my-theme
-npx @qwizzle/cli create config
-```
-
----
-
 ## Testing & Linting
 
 ```bash
-pnpm test                                          # Engine tests (Vitest)
-pnpm test:plugins                                  # Plugin system tests
-pnpm test:plugins:coverage                         # With coverage report
-pnpm test:all                                      # All tests
-pnpm --filter @qwizzle/plugins test:coverage       # Plugin coverage
-npx vitest run                                     # Engine unit tests directly
-pnpm run lint                                      # ESLint on web app
-pnpm type-check                                    # Type-check all packages
-pnpm validate                                      # type-check + lint + test
+pnpm test        # Run engine tests (Vitest)
+pnpm test:watch  # Watch mode
+pnpm lint        # ESLint on web app
 ```
-
-Test coverage targets 95%+, covering: plugin providers (Gist, URL, Local, MultiSource), plugin registry, theme system, and game engine.
 
 ---
 
-## Customization (classic method)
+## Customization
 
-- **Wordlists** — Edit `packages/wordlists/src/acronyms.json` (fields: `word`, `definition`, `expansion`).
+- **Wordlists** — Edit `apps/web/src/wordlists/acronyms.json` (fields: `word`, `definition`, `expansion`).
 - **Themes** — Update CSS variables in `apps/web/src/theme/tokens.css`; toggle persists to localStorage.
 
 ---
@@ -440,22 +211,10 @@ When HTTP provider is active, the app expects:
 1. Fork + clone the repo.
 2. Create a feature branch: `git checkout -b feature/amazing-idea`
 3. `corepack pnpm install` then `pnpm dev` to iterate locally.
-4. Add tests when touching the engine; keep `pnpm validate` green.
+4. Add tests when touching the engine; keep `pnpm test` and `pnpm lint` green.
 5. Open a PR with a clear summary, screenshots for UI tweaks, and links to related issues.
 
 Use conventional commit prefixes: `feat:`, `fix:`, `chore:`, `docs:`, etc.
-
-### Adding a provider
-
-1. Implement the `WordProvider` interface.
-2. Add tests.
-3. Export from `packages/plugins/src/providers/index.ts`.
-
-### Creating a theme
-
-1. Follow the `ThemeManifest` schema.
-2. Test in both light and dark modes (check contrast ratios).
-3. Add to `examples/themes/` and reference in `examples/configs/`.
 
 ---
 

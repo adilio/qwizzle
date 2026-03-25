@@ -1,6 +1,6 @@
-import { computeFeedback, newGame, submitGuess } from "@qwizzle/engine";
-import type { GameState, LetterFeedback, LetterMark } from "@qwizzle/engine";
-import { acronyms, words } from "@qwizzle/wordlists";
+import { computeFeedback, newGame, submitGuess } from "../engine";
+import type { GameState, LetterFeedback, LetterMark } from "../engine";
+import { acronyms, words } from "../wordlists";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Category, WordItem, WordProvider } from "@qwizzle/providers";
 import { dailySeed } from "../utils/dailySeed";
