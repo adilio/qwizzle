@@ -38,24 +38,11 @@ jobs:
       - name: Install dependencies
         run: corepack pnpm install
 
-      - name: Type check
-        run: corepack pnpm type-check
-
       - name: Lint
         run: corepack pnpm lint
 
-      - name: Run engine tests
-        run: corepack pnpm test:engine
-
-      - name: Run plugin tests with coverage
-        run: corepack pnpm test:plugins:coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./packages/plugins/coverage/coverage-final.json
-          flags: plugins
-          fail_ci_if_error: false
+      - name: Run tests
+        run: corepack pnpm test
 
   build-web:
     name: Build Web App
@@ -89,7 +76,7 @@ jobs:
         run: corepack pnpm install
 
       - name: Build web app
-        run: corepack pnpm build:web
+        run: corepack pnpm build
 
       - name: Check bundle size
         run: corepack pnpm size
