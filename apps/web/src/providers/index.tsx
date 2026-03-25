@@ -16,10 +16,11 @@ const WordProviderContext = createContext<WordProvider>(defaultProvider);
 
 interface ProviderProps {
   readonly children: React.ReactNode;
+  readonly provider?: WordProvider;
 }
 
-export function WordProviderProvider({ children }: ProviderProps) {
-  const value = useMemo(() => resolveProvider(), []);
+export function WordProviderProvider({ children, provider }: ProviderProps) {
+  const value = useMemo(() => provider ?? resolveProvider(), [provider]);
   return <WordProviderContext.Provider value={value}>{children}</WordProviderContext.Provider>;
 }
 
@@ -30,3 +31,4 @@ export function useWordProvider(): WordProvider {
 export type { WordProvider, WordItem, Category } from "./WordProvider";
 export { LocalListProvider } from "./LocalListProvider";
 export { createHttpProvider } from "./HttpProvider";
+export { createUrlProvider, createGistProvider } from "./createUrlProvider";
