@@ -1,0 +1,337 @@
+import { describe, expect, it } from "vitest";
+import {
+  applyLoss,
+  applyWin,
+  computeFeedback,
+  createInitialStats,
+  dailyIndex,
+  hashString,
+  isValidGuess,
+  keyboardStates,
+  newGame,
+  randomIndex,
+  shareGrid,
+  shareText,
+  submitGuess,
+  utcDateKey,
+  MAX_ATTEMPTS,
+  type GameState,
+  type WordEntry,
+} from "./index";
+
+const ENTRIES: WordEntry[] = [
+  { word: "SIEM", definition: "Log aggregation platform" },
+  { word: "CASB", definition: "Cloud access broker" },
+  { word: "SOAR", definition: "Automated response" },
+  { word: "MFA", definition: "More than one factor" },
+  { word: "CNAPP", definition: "Cloud-native protection" },
+];
+
+function playing(word: string): GameState {
+  return {
+    wordlistId: "builtin",
+    mode: "daily",
+    index: 0,
+    dateKey: "2026-07-05",
+    word,
+    guesses: [],
+    results: [],
+    maxAttempts: MAX_ATTEMPTS,
+    status: "playing",
+    hinted: false,
+  };
+}
+
+describe("computeFeedback", () => {
+  it("marks an exact match all correct", () => {
+    expect(computeFeedback("SIEM", "SIEM")).toEqual([
+      "correct",
+      "correct",
+      "correct",
+      "correct",
+    ]);
+  });
+
+  it("marks letters not in the word absent", () => {
+    expect(computeFeedback("SIEM", "XQZW")).toEqual([
+      "absent",
+      "absent",
+      "absent",
+      "absent",
+    ]);
+  });
+
+  it("marks misplaced letters present", () => {
+    expect(computeFeedback("SOAR", "ARSO")).toEqual([
+      "present",
+      "present",
+      "present",
+      "present",
+    ]);
+  });
+
+  it("claims exact matches before present marks (duplicate letters)", () => {
+    // Target ABBEY, guess BABES: first B present (one unclaimed B left),
+    // A present, third-slot B and fourth-slot E exactly placed, S absent.
+    expect(computeFeedback("ABBEY", "BABES")).toEqual([
+      "present",
+      "present",
+      "correct",
+      "correct",
+      "absent",
+    ]);
+  });
+
+  it("only marks as many duplicates present as the target holds", () => {
+    // Target has one E; guess EEEE gets exactly one mark (the correct one).
+    expect(computeFeedback("SIEM", "EEEE")).toEqual([
+      "absent",
+      "absent",
+      "correct",
+      "absent",
+    ]);
+    // Target ERASE (two Es), guess SPEED: only two E marks total.
+    expect(computeFeedback("ERASE", "SPEED")).toEqual([
+      "present",
+      "absent",
+      "present",
+      "present",
+      "absent",
+    ]);
+  });
+
+  it("prefers the exact match even when it appears later in the guess", () => {
+    // Target ABBEY, guess KAYAK: first A present, second A absent (only one A).
+    expect(computeFeedback("ABBEY", "KAYAK")).toEqual([
+      "absent",
+      "present",
+      "present",
+      "absent",
+      "absent",
+    ]);
+  });
+});
+
+describe("keyboardStates", () => {
+  it("keeps the best state per letter across guesses", () => {
+    const guesses = ["ARSO", "SOAR"];
+    const results = [computeFeedback("SOAR", "ARSO"), computeFeedback("SOAR", "SOAR")];
+    const states = keyboardStates(guesses, results);
+    expect(states.get("S")).toBe("correct");
+    expect(states.get("A")).toBe("correct");
+  });
+
+  it("does not downgrade correct to present or absent", () => {
+    const guesses = ["SIEM", "MIST"];
+    const results = [computeFeedback("SIEM", "SIEM"), computeFeedback("SIEM", "MIST")];
+    const states = keyboardStates(guesses, results);
+    expect(states.get("S")).toBe("correct");
+    expect(states.get("M")).toBe("correct");
+    expect(states.get("T")).toBe("absent");
+  });
+});
+
+describe("daily seed", () => {
+  const date = new Date(Date.UTC(2026, 6, 5, 12, 0, 0));
+
+  it("formats the UTC date key", () => {
+    expect(utcDateKey(date)).toBe("2026-07-05");
+    // Just before midnight UTC is still the same day; just after flips.
+    expect(utcDateKey(new Date(Date.UTC(2026, 6, 5, 23, 59, 59)))).toBe("2026-07-05");
+    expect(utcDateKey(new Date(Date.UTC(2026, 6, 6, 0, 0, 1)))).toBe("2026-07-06");
+  });
+
+  it("hashes deterministically", () => {
+    expect(hashString("builtin-2026-07-05")).toBe(hashString("builtin-2026-07-05"));
+    expect(hashString("a")).not.toBe(hashString("b"));
+  });
+
+  it("is deterministic per wordlist per day and always in range", () => {
+    const a = dailyIndex("builtin", ENTRIES.length, date);
+    expect(dailyIndex("builtin", ENTRIES.length, date)).toBe(a);
+    expect(a).toBeGreaterThanOrEqual(0);
+    expect(a).toBeLessThan(ENTRIES.length);
+  });
+
+  it("gives independent dailies to different wordlists and days", () => {
+    // With a big modulus the hashes differ; verify against raw hashes so the
+    // assertion doesn't depend on a lucky modulo collision.
+    expect(hashString("listA-2026-07-05")).not.toBe(hashString("listB-2026-07-05"));
+    expect(hashString("listA-2026-07-05")).not.toBe(hashString("listA-2026-07-06"));
+  });
+
+  it("throws on an empty list", () => {
+    expect(() => dailyIndex("builtin", 0, date)).toThrow();
+    expect(() => randomIndex(0)).toThrow();
+  });
+
+  it("randomIndex respects the injected rng and stays in range", () => {
+    expect(randomIndex(5, () => 0)).toBe(0);
+    expect(randomIndex(5, () => 0.999999)).toBe(4);
+  });
+});
+
+describe("newGame", () => {
+  it("creates a daily game with the deterministic pick and date key", () => {
+    const date = new Date(Date.UTC(2026, 6, 5));
+    const state = newGame({ wordlistId: "builtin", entries: ENTRIES, mode: "daily", date });
+    expect(state.index).toBe(dailyIndex("builtin", ENTRIES.length, date));
+    expect(state.word).toBe(ENTRIES[state.index].word);
+    expect(state.dateKey).toBe("2026-07-05");
+    expect(state.status).toBe("playing");
+  });
+
+  it("creates a random game with no date key", () => {
+    const state = newGame({
+      wordlistId: "builtin",
+      entries: ENTRIES,
+      mode: "random",
+      rng: () => 0.5,
+    });
+    expect(state.dateKey).toBeNull();
+    expect(state.index).toBe(2);
+  });
+});
+
+describe("submitGuess", () => {
+  it("rejects wrong length and invalid characters", () => {
+    const state = playing("SIEM");
+    expect(submitGuess(state, "SI")).toEqual({ ok: false, error: "wrong-length" });
+    expect(submitGuess(state, "SI-M")).toEqual({ ok: false, error: "invalid-chars" });
+  });
+
+  it("accepts digits (acronyms like S3 exist)", () => {
+    expect(isValidGuess("AB3C", 4)).toBe(true);
+  });
+
+  it("wins on a correct guess and stops accepting input", () => {
+    const state = playing("SIEM");
+    const result = submitGuess(state, "siem");
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.state.status).toBe("won");
+    expect(result.state.guesses).toEqual(["SIEM"]);
+    expect(submitGuess(result.state, "SIEM")).toEqual({ ok: false, error: "game-over" });
+  });
+
+  it("loses after max attempts and records all feedback rows", () => {
+    let state = playing("SIEM");
+    for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+      const result = submitGuess(state, "MIST");
+      if (!result.ok) throw new Error("expected ok");
+      state = result.state;
+    }
+    expect(state.status).toBe("lost");
+    expect(state.guesses).toHaveLength(MAX_ATTEMPTS);
+    expect(state.results).toHaveLength(MAX_ATTEMPTS);
+  });
+
+  it("does not mutate the previous state", () => {
+    const state = playing("SIEM");
+    submitGuess(state, "MIST");
+    expect(state.guesses).toEqual([]);
+    expect(state.status).toBe("playing");
+  });
+});
+
+describe("stats", () => {
+  function wonState(attempts: number, hinted = false): GameState {
+    let state = playing("SIEM");
+    for (let i = 0; i < attempts - 1; i += 1) {
+      const r = submitGuess(state, "MIST");
+      if (!r.ok) throw new Error("expected ok");
+      state = r.state;
+    }
+    const r = submitGuess(state, "SIEM");
+    if (!r.ok) throw new Error("expected ok");
+    return { ...r.state, hinted };
+  }
+
+  it("scores by attempt row", () => {
+    expect(applyWin(createInitialStats(), wonState(1)).score).toBe(100);
+    expect(applyWin(createInitialStats(), wonState(6)).score).toBe(10);
+  });
+
+  it("applies the hint penalty without going negative", () => {
+    expect(applyWin(createInitialStats(), wonState(1, true)).score).toBe(80);
+    expect(applyWin(createInitialStats(), wonState(6, true)).score).toBe(0);
+  });
+
+  it("tracks streaks and best across wins and losses", () => {
+    let stats = createInitialStats();
+    const win = { ...wonState(2), mode: "random" as const, dateKey: null };
+    stats = applyWin(stats, win);
+    stats = applyWin(stats, win);
+    expect(stats.streak).toBe(2);
+    expect(stats.best).toBe(2);
+    stats = applyLoss(stats, { ...win, status: "lost" });
+    expect(stats.streak).toBe(0);
+    expect(stats.best).toBe(2);
+    expect(stats.played).toBe(3);
+    expect(stats.won).toBe(2);
+  });
+
+  it("counts a given daily only once per wordlist per day", () => {
+    let stats = createInitialStats();
+    const win = wonState(1);
+    stats = applyWin(stats, win);
+    const again = applyWin(stats, win);
+    expect(again).toEqual(stats);
+    // Same day, different wordlist still counts.
+    const other = applyWin(stats, { ...win, wordlistId: "custom" });
+    expect(other.played).toBe(2);
+  });
+});
+
+describe("share", () => {
+  it("renders the emoji grid", () => {
+    expect(
+      shareGrid([
+        ["correct", "present", "absent"],
+        ["correct", "correct", "correct"],
+      ]),
+    ).toBe("🟩🟨⬛\n🟩🟩🟩");
+  });
+
+  it("builds a share text for a win", () => {
+    const state = playing("SIEM");
+    const r = submitGuess(state, "SIEM");
+    if (!r.ok) throw new Error("expected ok");
+    const text = shareText({
+      title: "Qwizzle",
+      state: r.state,
+      stats: applyWin(createInitialStats(), r.state),
+      url: "https://qwizzle.4dl.ca",
+    });
+    expect(text).toContain("Qwizzle 2026-07-05 1/6");
+    expect(text).toContain("Solved in 1 try");
+    expect(text).toContain("🟩🟩🟩🟩");
+    expect(text).toContain("https://qwizzle.4dl.ca");
+  });
+
+  it("builds a share text for a loss with X and the answer", () => {
+    let state: GameState = { ...playing("SIEM"), mode: "random", dateKey: null, index: 4 };
+    for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+      const r = submitGuess(state, "MIST");
+      if (!r.ok) throw new Error("expected ok");
+      state = r.state;
+    }
+    const text = shareText({
+      title: "Qwizzle: Cyber Edition",
+      state,
+      stats: applyLoss(createInitialStats(), state),
+      url: "https://qwizzle.4dl.ca",
+    });
+    expect(text).toContain("Qwizzle: Cyber Edition #5 X/6");
+    expect(text).toContain("answer: SIEM");
+  });
+
+  it("returns empty while the game is in progress", () => {
+    const text = shareText({
+      title: "Qwizzle",
+      state: playing("SIEM"),
+      stats: createInitialStats(),
+      url: "https://example.com",
+    });
+    expect(text).toBe("");
+  });
+});
