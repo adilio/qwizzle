@@ -595,11 +595,6 @@
   "definition": "Technology that monitors and manages the performance and availability of software applications to ensure optimal user experience. Detects performance anomalies that could indicate security issues, resource exhaustion attacks, or infrastructure problems. Provides visibility into application behavior, helping identify both performance bottlenecks and potential security incidents."
  },
  {
-  "word": "SIEM",
-  "expansion": "Security Information and Event Management",
-  "definition": "A centralized platform that aggregates and analyzes security logs and events from across an organization's IT infrastructure. Provides real-time monitoring, threat detection, and incident response capabilities by correlating data from multiple sources. Enables security teams to detect suspicious patterns, investigate security incidents, and maintain compliance through comprehensive logging and reporting."
- },
- {
   "word": "CEF",
   "expansion": "Common Event Format",
   "definition": "A standardized log format that enables interoperability between security products by providing a consistent structure for security event data. Simplifies integration of diverse security tools by providing a common language for log parsing and analysis. Facilitates centralized security monitoring by allowing different security products to communicate event information in a unified format."
@@ -618,11 +613,6 @@
   "word": "SWG",
   "expansion": "Secure Web Gateway",
   "definition": "A security solution that filters unwanted content from web traffic, enforces corporate policies, and protects users from web-based threats. Inspects web traffic for malware, blocks access to malicious sites, and prevents data leakage through web channels. Essential for protecting users from web-based attacks and enforcing acceptable use policies for internet access."
- },
- {
-  "word": "APT",
-  "expansion": "Advanced Persistent Threat",
-  "definition": "A sophisticated, long-term cyberattack campaign typically carried out by well-resourced threat actors such as nation-states or organized crime groups. Characterized by their stealthy approach, persistence over extended periods, and focus on high-value targets or information. These attacks often involve multiple phases including initial compromise, lateral movement, privilege escalation, and data exfiltration while remaining undetected for months or years."
  },
  {
   "word": "C2",

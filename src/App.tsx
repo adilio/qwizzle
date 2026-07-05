@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { appTitle } from "./brand";
 import { winPercent } from "./engine";
 import type { GameMode } from "./engine";
-import { BUILTIN_WORDLIST } from "./providers/builtin";
 import { useGame } from "./game/useGame";
 import { useTheme } from "./theme/useTheme";
+import { useWordlists } from "./wordlists/useWordlists";
+import { WordlistDialog } from "./wordlists/WordlistDialog";
 import { Board } from "./game/Board";
 import { Keyboard } from "./game/Keyboard";
 import { Modal } from "./game/Modal";
@@ -13,14 +14,16 @@ import { Scoreboard } from "./game/Scoreboard";
 import { Confetti } from "./game/Confetti";
 
 export default function App() {
-  const wordlist = BUILTIN_WORDLIST;
+  const wordlists = useWordlists();
+  const wordlist = wordlists.active;
   const game = useGame(wordlist);
   const { theme, toggle: toggleTheme } = useTheme();
   const [helpOpen, setHelpOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
+  const [wordsOpen, setWordsOpen] = useState(false);
   const [confettiBurst, setConfettiBurst] = useState(0);
-  const anyDialogOpen = helpOpen || statsOpen || resultOpen;
+  const anyDialogOpen = helpOpen || statsOpen || resultOpen || wordsOpen;
   const anyDialogOpenRef = useRef(anyDialogOpen);
   anyDialogOpenRef.current = anyDialogOpen;
 
@@ -99,6 +102,9 @@ export default function App() {
           <button type="button" className="btn btn--ghost" onClick={() => setStatsOpen(true)}>
             Stats
           </button>
+          <button type="button" className="btn btn--ghost" onClick={() => setWordsOpen(true)}>
+            Words
+          </button>
           <button
             type="button"
             className="btn"
@@ -125,7 +131,8 @@ export default function App() {
           </button>
         </div>
         <div className="controls__meta" role="status" aria-live="polite">
-          <span>Puzzle #{state.index + 1}</span>
+          <span>{wordlist.name}</span>
+          <span>· Puzzle #{state.index + 1}</span>
           <span>
             {state.mode === "daily"
               ? `Daily • ${state.dateKey ?? ""}`
@@ -235,6 +242,16 @@ export default function App() {
           <strong>Best streak:</strong> {stats.best}
         </p>
       </Modal>
+
+      <WordlistDialog
+        open={wordsOpen}
+        onClose={() => setWordsOpen(false)}
+        lists={wordlists.lists}
+        activeId={wordlist.id}
+        onSelect={wordlists.setActive}
+        onImported={wordlists.addList}
+        onRemove={wordlists.removeList}
+      />
 
       <ResultDialog
         open={resultOpen}

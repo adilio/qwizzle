@@ -1,24 +1,27 @@
+/* Default palette follows the Wiz brand: Wiz Blue #0254EC, Serious Blue
+   #01123F, Blue Shadow #173AAA, Sky Blues #6197FF/#97BBFF, Cloudy White,
+   the pinks, and Surprisingly Yellow #FFFF00. */
 :root {
   color-scheme: dark;
-  --bg: #0c0a16;
-  --bg-glow: rgba(124, 92, 255, 0.16);
-  --fg: #eeeaff;
-  --muted: #9a8fd0;
-  --accent: #7c5cff;
+  --bg: #010b2e;
+  --bg-glow: rgba(2, 84, 236, 0.22);
+  --fg: #ffffff;
+  --muted: #97bbff;
+  --accent: #0254ec;
   --accent-fg: #ffffff;
   --success: #22c55e;
-  --danger: #f45b5b;
-  --surface: #151129;
-  --surface-border: #2e2657;
-  --t-base: #1a1533;
-  --t-border: #383066;
+  --danger: #ff9bbe;
+  --surface: #081a4d;
+  --surface-border: #173aaa;
+  --t-base: #0a1e57;
+  --t-border: #2748b8;
   --t-correct: #22c55e;
-  --t-correct-fg: #06230f;
-  --t-present: #eab308;
-  --t-present-fg: #241a04;
-  --t-absent: #232038;
-  --key-bg: #151129;
-  --key-border: #383066;
+  --t-correct-fg: #01123f;
+  --t-present: #ffff00;
+  --t-present-fg: #01123f;
+  --t-absent: #050f33;
+  --key-bg: #081a4d;
+  --key-border: #2748b8;
   --tile: clamp(3rem, 7vw, 4rem);
   --gap: clamp(0.35rem, 2vw, 0.55rem);
   --pad: clamp(1rem, 4vw, 2.4rem);
@@ -27,24 +30,24 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #ffffff;
-  --bg-glow: rgba(124, 92, 255, 0.07);
-  --fg: #191233;
-  --muted: #675a9e;
-  --accent: #6d4aff;
+  --bg-glow: rgba(2, 84, 236, 0.07);
+  --fg: #01123f;
+  --muted: #173aaa;
+  --accent: #0254ec;
   --accent-fg: #ffffff;
   --success: #16a34a;
-  --danger: #d84848;
-  --surface: #f7f5ff;
-  --surface-border: #cdc3f0;
+  --danger: #c2185b;
+  --surface: #f3f7ff;
+  --surface-border: #97bbff;
   --t-base: #ffffff;
-  --t-border: #b9addf;
+  --t-border: #97bbff;
   --t-correct: #16a34a;
   --t-correct-fg: #ffffff;
-  --t-present: #f59e0b;
-  --t-present-fg: #221703;
-  --t-absent: #e6e2f4;
-  --key-bg: #f7f5ff;
-  --key-border: #8f81c9;
+  --t-present: #ffe000;
+  --t-present-fg: #01123f;
+  --t-absent: #e2eafb;
+  --key-bg: #f3f7ff;
+  --key-border: #6197ff;
 }
 
 html,
@@ -193,7 +196,7 @@ button {
 
 .streak-flair {
   font-weight: 600;
-  color: var(--accent);
+  color: #ff9bbe; /* Vibrant Pink flair on both themes */
 }
 
 .streak-flair--hot {
@@ -499,6 +502,101 @@ button {
 .result__streak {
   font-weight: 600;
   color: var(--accent);
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.input {
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: var(--t-base);
+  color: var(--fg);
+  width: 100%;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+textarea.input {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.subheading {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rule {
+  border: none;
+  border-top: 1px solid var(--surface-border);
+  margin: 0.25rem 0;
+  width: 100%;
+}
+
+.btn--small {
+  min-height: 32px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.wordlists {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.wordlists__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.wordlists__pick {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.wordlists__meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.warnings {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.warnings summary {
+  cursor: pointer;
 }
 
 #confetti {
