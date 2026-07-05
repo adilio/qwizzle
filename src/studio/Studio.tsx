@@ -21,6 +21,7 @@ import type { Edition } from "../editions/edition";
 import { ImportError } from "../providers/parse";
 import { gistProvider, urlProvider } from "../providers/providers";
 import type { Wordlist } from "../providers/types";
+import { DeriveColors } from "./DeriveColors";
 
 type Variant = "dark" | "light";
 
@@ -203,6 +204,12 @@ export function Studio({
             </select>
             <p className="hint">Import more lists from the Words dialog.</p>
           </div>
+
+          <DeriveColors
+            onApply={({ dark, light }) =>
+              onChange({ ...edition, theme: { colors: dark, lightColors: light } })
+            }
+          />
 
           <div className="tabs" role="tablist" aria-label="Theme variant">
             {(["dark", "light"] as const).map((v) => (

@@ -680,6 +680,42 @@ textarea.input {
   justify-content: flex-start;
 }
 
+.derive__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.derive__row .input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.derive__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.derive__swatch {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.derive__swatch:hover {
+  transform: scale(1.12);
+}
+
+.derive__swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .studio__preview {
   position: sticky;
   top: 0;

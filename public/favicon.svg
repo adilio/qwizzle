@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="4 down">
-  <rect width="64" height="64" rx="14" fill="#0254ec"/>
-  <path d="M27 14 14 35h11v9h8v-9h-8" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M46 16v24m0 0-8-8m8 8 8-8" fill="none" stroke="#ffbfd6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-label="Qwizzle 4-down logo">
+  <rect width="1254" height="1254" rx="274" fill="#0254ec"/>
+  <!-- The 4dl "4 with down arrow" glyph, matched to the approved 4dl mark. -->
+  <path fill="#ffffff" fill-rule="evenodd"
+    transform="translate(627 627) scale(2.15) translate(-613.5 -613.5)"
+    d="M 639 428 L 679 428 L 688 435 L 690 440 L 690 622 L 730 623 L 735 625 L 741 633 L 741 661 L 736 668 L 692 670 L 690 672 L 690 704 L 692 706 L 720 706 L 726 712 L 726 720 L 669 793 L 661 799 L 651 799 L 644 794 L 588 719 L 589 711 L 595 706 L 626 706 L 629 704 L 629 672 L 627 670 L 499 670 L 492 667 L 486 657 L 486 628 L 493 614 L 628 436 Z
+       M 629 520 L 622 527 L 551 620 L 551 623 L 628 623 Z"/>
 </svg>
