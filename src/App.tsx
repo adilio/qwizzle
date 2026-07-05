@@ -6,6 +6,8 @@ import { useGame } from "./game/useGame";
 import { useTheme } from "./theme/useTheme";
 import { useWordlists } from "./wordlists/useWordlists";
 import { WordlistDialog } from "./wordlists/WordlistDialog";
+import { useEdition } from "./editions/useEdition";
+import { Studio } from "./studio/Studio";
 import { Board } from "./game/Board";
 import { Keyboard } from "./game/Keyboard";
 import { Modal } from "./game/Modal";
@@ -18,17 +20,23 @@ export default function App() {
   const wordlist = wordlists.active;
   const game = useGame(wordlist);
   const { theme, toggle: toggleTheme } = useTheme();
+  const { edition, setEdition, reset: resetEdition } = useEdition(theme);
   const [helpOpen, setHelpOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [wordsOpen, setWordsOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [confettiBurst, setConfettiBurst] = useState(0);
-  const anyDialogOpen = helpOpen || statsOpen || resultOpen || wordsOpen;
+  const anyDialogOpen = helpOpen || statsOpen || resultOpen || wordsOpen || studioOpen;
   const anyDialogOpenRef = useRef(anyDialogOpen);
   anyDialogOpenRef.current = anyDialogOpen;
 
-  const title = appTitle();
+  const title = appTitle(edition.editionName);
   const { state, stats } = game;
+
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
 
   // First visit: show the help dialog once.
   useEffect(() => {
@@ -104,6 +112,9 @@ export default function App() {
           </button>
           <button type="button" className="btn btn--ghost" onClick={() => setWordsOpen(true)}>
             Words
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => setStudioOpen(true)}>
+            Studio
           </button>
           <button
             type="button"
@@ -251,6 +262,18 @@ export default function App() {
         onSelect={wordlists.setActive}
         onImported={wordlists.addList}
         onRemove={wordlists.removeList}
+      />
+
+      <Studio
+        open={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        edition={edition}
+        onChange={setEdition}
+        onReset={resetEdition}
+        lists={wordlists.lists}
+        activeListId={wordlist.id}
+        onSelectList={wordlists.setActive}
+        onImportedList={wordlists.addList}
       />
 
       <ResultDialog
