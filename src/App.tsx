@@ -192,6 +192,26 @@ export default function App() {
     game.start(mode);
   }
 
+  // Mobile: a transparent input overlaid on the board raises the OS keyboard
+  // when the board is tapped. Its value is diffed against the current guess so
+  // typing and deleting flow through the same engine as the on-screen keys.
+  const boardInputRef = useRef<HTMLInputElement>(null);
+  function handleBoardInput(event: React.ChangeEvent<HTMLInputElement>) {
+    const next = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cur = game.currentGuess;
+    if (next.length > cur.length) {
+      for (const ch of next.slice(cur.length)) game.type(ch);
+    } else if (next.length < cur.length) {
+      for (let i = next.length; i < cur.length; i++) game.backspace();
+    }
+  }
+  function handleBoardKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      game.submit();
+    }
+  }
+
   return (
     <div className="app">
       <header className="app__header">
@@ -302,7 +322,30 @@ export default function App() {
         {game.message?.text}
       </div>
 
-      <Board state={state} currentGuess={game.currentGuess} />
+      <div
+        className="board-wrap"
+        onClick={() => boardInputRef.current?.focus()}
+      >
+        <input
+          ref={boardInputRef}
+          className="board-input"
+          type="text"
+          value={game.currentGuess}
+          onChange={handleBoardInput}
+          onKeyDown={handleBoardKeyDown}
+          maxLength={state.word.length}
+          inputMode="text"
+          enterKeyHint="go"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          aria-hidden="true"
+          tabIndex={-1}
+          disabled={state.status !== "playing"}
+        />
+        <Board state={state} currentGuess={game.currentGuess} />
+      </div>
 
       <Keyboard
         keyStates={game.keyStates}
@@ -314,7 +357,7 @@ export default function App() {
       <Scoreboard stats={stats} />
 
       <footer className="footer">
-        <div>Type with your keyboard or tap the keys. Enter submits, Backspace deletes.</div>
+        <div>Type with your keyboard, tap the board, or tap the keys. Enter submits, Backspace deletes.</div>
         <div>
           <a
             href="https://github.com/adilio/qwizzle"
