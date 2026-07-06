@@ -55,6 +55,19 @@ export function useWordlists() {
     [setActive],
   );
 
+  /** Union in lists from the cloud without changing the active pick. */
+  const mergeLists = useCallback((incoming: Wordlist[]) => {
+    setSaved((prev) => {
+      const byId = new Map(prev.map((l) => [l.id, l]));
+      for (const list of incoming) {
+        if (!byId.has(list.id)) byId.set(list.id, list);
+      }
+      const next = [...byId.values()].slice(0, MAX_SAVED_LISTS);
+      saveJson(KEYS.lists, next);
+      return next;
+    });
+  }, []);
+
   const removeList = useCallback(
     (id: string) => {
       setSaved((prev) => {
@@ -67,5 +80,5 @@ export function useWordlists() {
     [activeId, setActive],
   );
 
-  return { lists, active, setActive, addList, removeList };
+  return { lists, active, setActive, addList, mergeLists, removeList };
 }

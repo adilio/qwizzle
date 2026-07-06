@@ -594,6 +594,12 @@ textarea.input {
   font-size: 0.85rem;
 }
 
+.account__row-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
 .warnings {
   font-size: 0.85rem;
   color: var(--muted);

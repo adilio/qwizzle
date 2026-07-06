@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+# SPA: serve index.html for client-routed paths like /e/<share-slug>.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

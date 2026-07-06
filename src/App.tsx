@@ -8,6 +8,19 @@ import { useWordlists } from "./wordlists/useWordlists";
 import { WordlistDialog } from "./wordlists/WordlistDialog";
 import { useEdition } from "./editions/useEdition";
 import { Studio } from "./studio/Studio";
+import { useAuth } from "./supabase/useAuth";
+import { AccountDialog } from "./account/AccountDialog";
+import {
+  fetchCloudStats,
+  fetchCloudWordlists,
+  fetchEditionBySlug,
+  saveCloudStats,
+  saveCloudWordlist,
+  upsertProfile,
+} from "./supabase/sync";
+import { wordlistFromRef } from "./editions/edition";
+import { gistProvider, urlProvider } from "./providers/providers";
+import type { Wordlist } from "./providers/types";
 import { Board } from "./game/Board";
 import { Keyboard } from "./game/Keyboard";
 import { Modal } from "./game/Modal";
@@ -26,8 +39,12 @@ export default function App() {
   const [resultOpen, setResultOpen] = useState(false);
   const [wordsOpen, setWordsOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [confettiBurst, setConfettiBurst] = useState(0);
-  const anyDialogOpen = helpOpen || statsOpen || resultOpen || wordsOpen || studioOpen;
+  const [banner, setBanner] = useState<string | null>(null);
+  const auth = useAuth();
+  const anyDialogOpen =
+    helpOpen || statsOpen || resultOpen || wordsOpen || studioOpen || accountOpen;
   const anyDialogOpenRef = useRef(anyDialogOpen);
   anyDialogOpenRef.current = anyDialogOpen;
 
@@ -37,6 +54,81 @@ export default function App() {
   useEffect(() => {
     document.title = title;
   }, [title]);
+
+  // Latest game/wordlists without retriggering the sync effects below.
+  const gameRef = useRef(game);
+  gameRef.current = game;
+  const wordlistsRef = useRef(wordlists);
+  wordlistsRef.current = wordlists;
+
+  // First sync after sign-in: profile, stats merge, wordlists both ways.
+  const syncedUser = useRef<string | null>(null);
+  useEffect(() => {
+    const user = auth.user;
+    if (!user || syncedUser.current === user.id) return;
+    syncedUser.current = user.id;
+    void (async () => {
+      await upsertProfile(
+        user.id,
+        (user.user_metadata?.full_name as string | undefined) ?? user.email ?? null,
+      );
+      const cloud = await fetchCloudStats();
+      const local = gameRef.current.stats;
+      if (!cloud || local.played >= cloud.played) {
+        await saveCloudStats(user.id, local);
+      } else {
+        gameRef.current.replaceStats(cloud);
+      }
+      const cloudLists = await fetchCloudWordlists();
+      if (cloudLists.length > 0) wordlistsRef.current.mergeLists(cloudLists);
+      for (const list of wordlistsRef.current.lists) {
+        if (list.sourceType !== "builtin") void saveCloudWordlist(user.id, list);
+      }
+    })();
+  }, [auth.user]);
+
+  // Mirror stats to the account, debounced.
+  useEffect(() => {
+    if (!auth.user) return;
+    const userId = auth.user.id;
+    const timeout = window.setTimeout(() => void saveCloudStats(userId, game.stats), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [game.stats, auth.user]);
+
+  // /e/<slug> public share links: apply the edition read-only, no login needed.
+  const sharedLoaded = useRef(false);
+  useEffect(() => {
+    if (sharedLoaded.current) return;
+    sharedLoaded.current = true;
+    const match = window.location.pathname.match(/^\/e\/([a-z0-9]{4,32})\/?$/);
+    if (!match) return;
+    void fetchEditionBySlug(match[1]).then(async (cloud) => {
+      if (!cloud) {
+        setBanner("That share link doesn't exist or is no longer shared.");
+        return;
+      }
+      setEdition(cloud.edition);
+      const ref = cloud.edition.wordlist;
+      let list: Wordlist | null = wordlistFromRef(ref);
+      if (!list && ref.source_url) {
+        try {
+          const provider =
+            ref.source_type === "gist" ? gistProvider(ref.source_url) : urlProvider(ref.source_url);
+          list = (await provider.load()).wordlist;
+        } catch {
+          // shared list unavailable — the builtin list still plays
+        }
+      }
+      if (list) wordlistsRef.current.addList(list);
+      setBanner(`Playing a shared edition — ${appTitle(cloud.edition.editionName)}.`);
+    });
+  }, [setEdition]);
+
+  // Imports go to the account too when signed in.
+  function handleImportedList(list: Wordlist) {
+    wordlists.addList(list);
+    if (auth.user) void saveCloudWordlist(auth.user.id, list);
+  }
 
   // First visit: show the help dialog once.
   useEffect(() => {
@@ -116,6 +208,11 @@ export default function App() {
           <button type="button" className="btn btn--ghost" onClick={() => setStudioOpen(true)}>
             Studio
           </button>
+          {auth.enabled && (
+            <button type="button" className="btn btn--ghost" onClick={() => setAccountOpen(true)}>
+              {auth.user ? "👤 Account" : "Sign in"}
+            </button>
+          )}
           <button
             type="button"
             className="btn"
@@ -176,6 +273,12 @@ export default function App() {
         <h2>Clue</h2>
         <p>{game.entry.definition ?? "No clue available — good luck!"}</p>
       </section>
+
+      {banner && (
+        <div className="message" role="status" aria-live="polite" data-tone="info">
+          {banner}
+        </div>
+      )}
 
       <div className="message" role="status" aria-live="polite" data-tone={game.message?.tone}>
         {game.message?.text}
@@ -260,8 +363,18 @@ export default function App() {
         lists={wordlists.lists}
         activeId={wordlist.id}
         onSelect={wordlists.setActive}
-        onImported={wordlists.addList}
+        onImported={handleImportedList}
         onRemove={wordlists.removeList}
+      />
+
+      <AccountDialog
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        user={auth.user}
+        onSignIn={auth.signInWithGoogle}
+        onSignOut={auth.signOut}
+        edition={edition}
+        onLoadEdition={setEdition}
       />
 
       <Studio
@@ -273,7 +386,7 @@ export default function App() {
         lists={wordlists.lists}
         activeListId={wordlist.id}
         onSelectList={wordlists.setActive}
-        onImportedList={wordlists.addList}
+        onImportedList={handleImportedList}
       />
 
       <ResultDialog

@@ -154,7 +154,11 @@ export function useGame(wordlist: Wordlist) {
 
   const clearJustEnded = useCallback(() => setJustEnded(null), []);
 
+  /** Adopt stats from another source (cloud sync). */
+  const replaceStats = useCallback((next: Stats) => setStats(next), []);
+
   return {
+    replaceStats,
     state,
     entry,
     currentGuess,
