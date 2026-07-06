@@ -64,6 +64,7 @@ interface StudioProps {
   activeListId: string;
   onSelectList: (id: string) => void;
   onImportedList: (list: Wordlist) => void;
+  aiEnabled: boolean;
 }
 
 export function Studio({
@@ -76,6 +77,7 @@ export function Studio({
   activeListId,
   onSelectList,
   onImportedList,
+  aiEnabled,
 }: StudioProps) {
   const [variant, setVariant] = useState<Variant>("dark");
   const [status, setStatus] = useState<{ text: string; tone: "success" | "error" } | null>(null);
@@ -206,6 +208,7 @@ export function Studio({
           </div>
 
           <DeriveColors
+            aiEnabled={aiEnabled}
             onApply={({ dark, light }) =>
               onChange({ ...edition, theme: { colors: dark, lightColors: light } })
             }

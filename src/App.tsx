@@ -387,6 +387,7 @@ export default function App() {
         activeListId={wordlist.id}
         onSelectList={wordlists.setActive}
         onImportedList={handleImportedList}
+        aiEnabled={Boolean(auth.user)}
       />
 
       <ResultDialog
