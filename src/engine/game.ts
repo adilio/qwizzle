@@ -9,14 +9,18 @@ export interface NewGameOptions {
   mode: GameMode;
   date?: Date;
   rng?: () => number;
+  /** Play this exact puzzle (challenge links); ignored when out of range. */
+  forcedIndex?: number;
 }
 
 export function newGame(options: NewGameOptions): GameState {
-  const { wordlistId, entries, mode, date, rng } = options;
+  const { wordlistId, entries, mode, date, rng, forcedIndex } = options;
   const index =
-    mode === "daily"
-      ? dailyIndex(wordlistId, entries.length, date)
-      : randomIndex(entries.length, rng);
+    forcedIndex !== undefined && forcedIndex >= 0 && forcedIndex < entries.length
+      ? Math.floor(forcedIndex)
+      : mode === "daily"
+        ? dailyIndex(wordlistId, entries.length, date)
+        : randomIndex(entries.length, rng);
   return {
     wordlistId,
     mode,

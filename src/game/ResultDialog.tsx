@@ -23,6 +23,8 @@ interface ResultDialogProps {
   entry: WordEntry;
   stats: Stats;
   title: string;
+  /** Link to this exact puzzle, when the wordlist is shareable. */
+  challengeUrl: string | null;
 }
 
 export function ResultDialog({
@@ -33,6 +35,7 @@ export function ResultDialog({
   entry,
   stats,
   title,
+  challengeUrl,
 }: ResultDialogProps) {
   const [status, setStatus] = useState<{ text: string; tone: "info" | "success" | "error" } | null>(null);
   const [fallbackText, setFallbackText] = useState<string | null>(null);
@@ -94,6 +97,18 @@ export function ResultDialog({
           <strong>Definition:</strong> {entry.definition}
         </p>
       )}
+      {entry.expansion && (
+        <p>
+          <a
+            className="footer__link"
+            href={`https://www.google.com/search?q=${encodeURIComponent(entry.expansion)}`}
+            target="_blank"
+            rel="noopener"
+          >
+            Learn more about {entry.word} ↗
+          </a>
+        </p>
+      )}
       <p style={{ color: "var(--muted)", fontSize: "0.9em" }}>
         Score {stats.score} • Win {winPercent(stats)}% • Streak {stats.streak}
       </p>
@@ -104,6 +119,25 @@ export function ResultDialog({
         <button type="button" className="btn" onClick={handleCopy}>
           Copy
         </button>
+        {challengeUrl && (
+          <button
+            type="button"
+            className="btn"
+            title="Copy a link to this exact puzzle"
+            onClick={async () => {
+              const outcome = await copyText(
+                `Can you beat me? I got this one ${state.status === "won" ? `in ${attempts}` : "wrong"} — try the same puzzle: ${challengeUrl}`,
+              );
+              setStatus(
+                outcome === "copied"
+                  ? { text: "Challenge link copied!", tone: "success" }
+                  : { text: challengeUrl, tone: "info" },
+              );
+            }}
+          >
+            Challenge a friend
+          </button>
+        )}
         <button type="button" className="btn btn--accent" onClick={onPlayAgain}>
           Play again
         </button>

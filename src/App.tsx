@@ -28,10 +28,17 @@ import { ResultDialog } from "./game/ResultDialog";
 import { Scoreboard } from "./game/Scoreboard";
 import { Confetti } from "./game/Confetti";
 
+function challengeIndexFromUrl(): number | undefined {
+  const raw = new URLSearchParams(window.location.search).get("p");
+  if (!raw || !/^\d{1,6}$/.test(raw)) return undefined;
+  return Number(raw);
+}
+
 export default function App() {
   const wordlists = useWordlists();
   const wordlist = wordlists.active;
-  const game = useGame(wordlist);
+  const [challengeIndex] = useState(challengeIndexFromUrl);
+  const game = useGame(wordlist, challengeIndex);
   const { theme, toggle: toggleTheme } = useTheme();
   const { edition, setEdition, reset: resetEdition } = useEdition(theme);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -266,6 +273,17 @@ export default function App() {
               {mode === "daily" ? "Daily" : "Random"}
             </button>
           ))}
+          <button
+            type="button"
+            className="chip"
+            role="switch"
+            aria-checked={game.hardMode}
+            data-active={game.hardMode}
+            title="Hard mode: revealed hints must be reused in later guesses"
+            onClick={() => game.setHardMode(!game.hardMode)}
+          >
+            Hard
+          </button>
         </div>
       </section>
 
@@ -398,6 +416,13 @@ export default function App() {
         entry={game.entry}
         stats={stats}
         title={title}
+        challengeUrl={
+          // Only when the recipient can resolve the same list: the built-in
+          // list (any visitor has it) or a shared edition path (/e/<slug>).
+          wordlist.id === "builtin" || window.location.pathname.startsWith("/e/")
+            ? `${window.location.origin}${window.location.pathname}?p=${state.index}`
+            : null
+        }
       />
 
       <Confetti burst={confettiBurst} />

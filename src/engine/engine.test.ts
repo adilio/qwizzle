@@ -5,6 +5,7 @@ import {
   computeFeedback,
   createInitialStats,
   dailyIndex,
+  hardModeViolation,
   hashString,
   isValidGuess,
   keyboardStates,
@@ -190,6 +191,65 @@ describe("newGame", () => {
     });
     expect(state.dateKey).toBeNull();
     expect(state.index).toBe(2);
+  });
+});
+
+describe("hard mode", () => {
+  async function played(word: string, guesses: string[]): Promise<GameState> {
+    let state = playing(word);
+    for (const guess of guesses) {
+      const r = submitGuess(state, guess);
+      if (!r.ok) throw new Error("expected ok");
+      state = r.state;
+    }
+    return state;
+  }
+
+  it("allows anything on the first guess", async () => {
+    expect(hardModeViolation(playing("SIEM"), "XQZW")).toBeNull();
+  });
+
+  it("requires green letters to stay in place", async () => {
+    // SIEM vs MIST: I correct at position 2.
+    const state = await played("SIEM", ["MIST"]);
+    expect(hardModeViolation(state, "SOAR")).toBe("Letter 2 must be I");
+    expect(hardModeViolation(state, "SIEM")).toBeNull();
+  });
+
+  it("requires yellow letters to be reused somewhere", async () => {
+    // SOAR vs ARSO: everything is present, nothing correct.
+    const state = await played("SOAR", ["ARSO"]);
+    expect(hardModeViolation(state, "XXXX")).toMatch(/must contain/);
+    expect(hardModeViolation(state, "SOAR")).toBeNull();
+    expect(hardModeViolation(state, "RASO")).toBeNull();
+  });
+
+  it("checks hints from every previous row, counting duplicates", async () => {
+    // ERASE has two Es; SPEED reveals both (present at 3 and 4).
+    const state = await played("ERASE", ["SPEED"]);
+    expect(hardModeViolation(state, "SEIZE")).toBeNull();
+    // Only one E — violates the two revealed Es.
+    expect(hardModeViolation(state, "SABER")).toBe("Guess must contain E");
+  });
+
+  it("newGame honors a forced index for challenge links", () => {
+    const state = newGame({
+      wordlistId: "builtin",
+      entries: ENTRIES,
+      mode: "random",
+      forcedIndex: 3,
+    });
+    expect(state.index).toBe(3);
+    expect(state.word).toBe(ENTRIES[3].word);
+    // Out-of-range forces fall back to a normal pick.
+    const fallback = newGame({
+      wordlistId: "builtin",
+      entries: ENTRIES,
+      mode: "random",
+      rng: () => 0,
+      forcedIndex: 99,
+    });
+    expect(fallback.index).toBe(0);
   });
 });
 

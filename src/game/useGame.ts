@@ -3,6 +3,7 @@ import {
   applyLoss,
   applyWin,
   createInitialStats,
+  hardModeViolation,
   keyboardStates,
   newGame,
   submitGuess,
@@ -16,6 +17,7 @@ const KEYS = {
   game: "qwizzle:game",
   stats: "qwizzle:stats",
   mode: "qwizzle:mode",
+  hard: "qwizzle:hardmode",
 };
 
 export interface Message {
@@ -42,30 +44,51 @@ function loadMode(): GameMode {
   return loadJson<string>(KEYS.mode) === "random" ? "random" : "daily";
 }
 
-function initGame(wordlist: Wordlist): GameState {
+function initGame(wordlist: Wordlist, challengeIndex?: number): GameState {
+  if (
+    challengeIndex !== undefined &&
+    challengeIndex >= 0 &&
+    challengeIndex < wordlist.entries.length
+  ) {
+    return newGame({
+      wordlistId: wordlist.id,
+      entries: wordlist.entries,
+      mode: "random",
+      forcedIndex: challengeIndex,
+    });
+  }
   return (
     restoreGame(loadJson(KEYS.game), wordlist) ??
     newGame({ wordlistId: wordlist.id, entries: wordlist.entries, mode: loadMode() })
   );
 }
 
-export function useGame(wordlist: Wordlist) {
-  const [state, setState] = useState<GameState>(() => initGame(wordlist));
+export function useGame(wordlist: Wordlist, challengeIndex?: number) {
+  const [state, setState] = useState<GameState>(() => initGame(wordlist, challengeIndex));
+  const [hardMode, setHardModeState] = useState<boolean>(() => loadJson<boolean>(KEYS.hard) === true);
   const [currentGuess, setCurrentGuess] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
   const [stats, setStats] = useState<Stats>(loadStats);
   const [justEnded, setJustEnded] = useState<"won" | "lost" | null>(null);
   const wordlistRef = useRef(wordlist.id);
 
-  // Re-key the session when the active wordlist changes.
+  // Re-key the session when the active wordlist changes. A pending challenge
+  // index applies once (a shared edition's list arrives async after boot).
+  const challengeRef = useRef(challengeIndex);
   useEffect(() => {
     if (wordlistRef.current === wordlist.id) return;
     wordlistRef.current = wordlist.id;
-    setState(initGame(wordlist));
+    setState(initGame(wordlist, challengeRef.current));
+    challengeRef.current = undefined;
     setCurrentGuess("");
     setMessage(null);
     setJustEnded(null);
   }, [wordlist]);
+
+  const setHardMode = useCallback((on: boolean) => {
+    setHardModeState(on);
+    saveJson(KEYS.hard, on);
+  }, []);
 
   useEffect(() => {
     saveJson(KEYS.game, toStored(state));
@@ -116,6 +139,13 @@ export function useGame(wordlist: Wordlist) {
       setJustEnded(state.status === "won" ? "won" : "lost");
       return;
     }
+    if (hardMode && currentGuess.length === state.word.length) {
+      const violation = hardModeViolation(state, currentGuess);
+      if (violation) {
+        setMessage({ text: `Hard mode: ${violation}`, tone: "error" });
+        return;
+      }
+    }
     const result = submitGuess(state, currentGuess);
     if (!result.ok) {
       if (result.error === "wrong-length") setMessage({ text: "Not enough letters", tone: "error" });
@@ -141,7 +171,7 @@ export function useGame(wordlist: Wordlist) {
     } else {
       setMessage(null);
     }
-  }, [state, currentGuess]);
+  }, [state, currentGuess, hardMode]);
 
   const hint = useCallback(() => {
     if (state.status !== "playing") return;
@@ -170,6 +200,8 @@ export function useGame(wordlist: Wordlist) {
     backspace,
     submit,
     hint,
+    hardMode,
+    setHardMode,
     justEnded,
     clearJustEnded,
   };
