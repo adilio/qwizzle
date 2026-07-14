@@ -131,6 +131,40 @@ export async function setEditionPublic(
   return (data as { share_slug: string | null }).share_slug ?? slug;
 }
 
+/** One of the user's own saved editions, by id (RLS scopes to owner). */
+export async function fetchCloudEditionById(id: string): Promise<CloudEdition | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from(TABLES.editions)
+    .select(SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return rowToEdition(data as EditionRow);
+}
+
+export async function fetchDefaultEditionId(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from(TABLES.profiles)
+    .select("default_edition_id")
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { default_edition_id: string | null }).default_edition_id;
+}
+
+export async function setDefaultEdition(
+  userId: string,
+  editionId: string | null,
+): Promise<{ error: string | null }> {
+  if (!supabase) return { error: "Accounts are not configured." };
+  const { error } = await supabase
+    .from(TABLES.profiles)
+    .update({ default_edition_id: editionId, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  return { error: error?.message ?? null };
+}
+
 /** Anonymous read of a published edition — powers /e/<slug> links. */
 export async function fetchEditionBySlug(slug: string): Promise<CloudEdition | null> {
   if (!supabase) return null;

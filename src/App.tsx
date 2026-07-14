@@ -11,14 +11,17 @@ import { Studio } from "./studio/Studio";
 import { useAuth } from "./supabase/useAuth";
 import { AccountDialog } from "./account/AccountDialog";
 import {
+  fetchCloudEditionById,
   fetchCloudStats,
   fetchCloudWordlists,
+  fetchDefaultEditionId,
   fetchEditionBySlug,
   saveCloudStats,
   saveCloudWordlist,
   upsertProfile,
 } from "./supabase/sync";
-import { wordlistFromRef } from "./editions/edition";
+import { defaultEdition, wordlistFromRef } from "./editions/edition";
+import type { Edition, EditionWordlistRef } from "./editions/edition";
 import { aiPaletteConfigured } from "./theme/aiPalette";
 import { gistProvider, urlProvider } from "./providers/providers";
 import type { Wordlist } from "./providers/types";
@@ -33,6 +36,34 @@ function challengeIndexFromUrl(): number | undefined {
   const raw = new URLSearchParams(window.location.search).get("p");
   if (!raw || !/^\d{1,6}$/.test(raw)) return undefined;
   return Number(raw);
+}
+
+/**
+ * Rebuild an edition's playable wordlist: embedded entries first, then a
+ * re-fetch by source_url for url/gist refs. `problem` is set when a non-builtin
+ * list could not be reconstructed — callers must say so, never silently play
+ * the built-in list as if it were the edition's.
+ */
+async function listFromEditionRef(
+  ref: EditionWordlistRef,
+): Promise<{ list: Wordlist | null; problem: string | null }> {
+  let list: Wordlist | null = wordlistFromRef(ref);
+  let problem: string | null = null;
+  if (!list && ref.source_type !== "builtin") {
+    if (ref.source_url) {
+      try {
+        const provider =
+          ref.source_type === "gist" ? gistProvider(ref.source_url) : urlProvider(ref.source_url);
+        list = (await provider.load()).wordlist;
+        if (ref.name) list = { ...list, name: ref.name };
+      } catch {
+        problem = "its word list could not be fetched";
+      }
+    } else {
+      problem = "its word list is missing";
+    }
+  }
+  return { list, problem };
 }
 
 export default function App() {
@@ -68,6 +99,8 @@ export default function App() {
   gameRef.current = game;
   const wordlistsRef = useRef(wordlists);
   wordlistsRef.current = wordlists;
+  const editionRef = useRef(edition);
+  editionRef.current = edition;
 
   // Failed account writes surface once per failure streak instead of vanishing.
   const syncFailed = useRef(false);
@@ -143,8 +176,22 @@ export default function App() {
           void saveCloudWordlist(user.id, list).then((r) => reportSyncError(r.error));
         }
       }
+
+      // The account's default edition loads on a fresh device — never over a
+      // share link or an edition this device has already customized.
+      const pristine =
+        JSON.stringify(editionRef.current) === JSON.stringify(defaultEdition());
+      if (pristine && !window.location.pathname.startsWith("/e/")) {
+        const defaultId = await fetchDefaultEditionId();
+        const cloud = defaultId ? await fetchCloudEditionById(defaultId) : null;
+        if (cloud) {
+          setEdition(cloud.edition);
+          const { list } = await listFromEditionRef(cloud.edition.wordlist);
+          if (list) wordlistsRef.current.addList(list);
+        }
+      }
     })();
-  }, [auth.user, reportSyncError]);
+  }, [auth.user, reportSyncError, setEdition]);
 
   async function decideAdoption(adopt: boolean) {
     setAdoptOpen(false);
@@ -180,23 +227,7 @@ export default function App() {
         return;
       }
       setEdition(cloud.edition);
-      const ref = cloud.edition.wordlist;
-      let list: Wordlist | null = wordlistFromRef(ref);
-      let listProblem: string | null = null;
-      if (!list && ref.source_type !== "builtin") {
-        if (ref.source_url) {
-          try {
-            const provider =
-              ref.source_type === "gist" ? gistProvider(ref.source_url) : urlProvider(ref.source_url);
-            list = (await provider.load()).wordlist;
-            if (ref.name) list = { ...list, name: ref.name };
-          } catch {
-            listProblem = "its word list could not be fetched";
-          }
-        } else {
-          listProblem = "its word list is missing from the share";
-        }
-      }
+      const { list, problem: listProblem } = await listFromEditionRef(cloud.edition.wordlist);
       if (list) wordlistsRef.current.addList(list);
       // Never claim the edition loaded cleanly while silently playing the
       // built-in list — say exactly which list is in play.
@@ -207,6 +238,13 @@ export default function App() {
       );
     });
   }, [setEdition]);
+
+  // Loading a saved edition also activates its word list, not just its look.
+  async function handleLoadEdition(next: Edition) {
+    setEdition(next);
+    const { list } = await listFromEditionRef(next.wordlist);
+    if (list) wordlistsRef.current.addList(list);
+  }
 
   // Imports go to the account too when signed in.
   function handleImportedList(list: Wordlist) {
@@ -538,7 +576,7 @@ export default function App() {
         onSignIn={auth.signInWithGoogle}
         onSignOut={auth.signOut}
         edition={edition}
-        onLoadEdition={setEdition}
+        onLoadEdition={(next) => void handleLoadEdition(next)}
       />
 
       <Studio

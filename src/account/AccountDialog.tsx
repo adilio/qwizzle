@@ -5,7 +5,9 @@ import type { Edition } from "../editions/edition";
 import {
   deleteCloudEdition,
   fetchCloudEditions,
+  fetchDefaultEditionId,
   saveCloudEdition,
+  setDefaultEdition,
   setEditionPublic,
 } from "../supabase/sync";
 import type { CloudEdition } from "../supabase/sync";
@@ -32,11 +34,17 @@ export function AccountDialog({
   onLoadEdition,
 }: AccountDialogProps) {
   const [cloudEditions, setCloudEditions] = useState<CloudEdition[]>([]);
+  const [defaultId, setDefaultId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "success" | "error" } | null>(null);
 
   const refresh = useCallback(async () => {
-    setCloudEditions(await fetchCloudEditions());
+    const [editions, currentDefault] = await Promise.all([
+      fetchCloudEditions(),
+      fetchDefaultEditionId(),
+    ]);
+    setCloudEditions(editions);
+    setDefaultId(currentDefault);
   }, []);
 
   useEffect(() => {
@@ -54,6 +62,23 @@ export function AccountDialog({
       setStatus({ text: existingId ? "Edition updated." : "Edition saved.", tone: "success" });
       void refresh();
     }
+  }
+
+  async function handleSetDefault(item: CloudEdition) {
+    if (!user) return;
+    const next = defaultId === item.id ? null : item.id;
+    const { error } = await setDefaultEdition(user.id, next);
+    if (error) {
+      setStatus({ text: error, tone: "error" });
+      return;
+    }
+    setDefaultId(next);
+    setStatus({
+      text: next
+        ? `“${appTitle(item.edition.editionName)}” will load when you sign in on a new device.`
+        : "Default cleared.",
+      tone: "success",
+    });
   }
 
   async function handleShare(item: CloudEdition) {
@@ -119,7 +144,12 @@ export function AccountDialog({
                 <span>
                   <strong>{appTitle(item.edition.editionName)}</strong>{" "}
                   <span className="wordlists__meta">
-                    {item.isPublic && item.shareSlug ? "· shared" : ""}
+                    {[
+                      item.isPublic && item.shareSlug ? "· shared" : "",
+                      defaultId === item.id ? "· default" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                   </span>
                 </span>
                 <span className="account__row-actions">
@@ -132,6 +162,14 @@ export function AccountDialog({
                     }}
                   >
                     Load
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--small"
+                    onClick={() => void handleSetDefault(item)}
+                    title="Load this edition automatically when you sign in on a new device"
+                  >
+                    {defaultId === item.id ? "Unset default" : "Set default"}
                   </button>
                   <button
                     type="button"
