@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { appTitle } from "./brand";
-import { winPercent } from "./engine";
+import { createInitialStats, mergeStats, winPercent } from "./engine";
 import type { GameMode } from "./engine";
 import { useGame } from "./game/useGame";
 import { useTheme } from "./theme/useTheme";
@@ -68,11 +68,34 @@ export default function App() {
   const wordlistsRef = useRef(wordlists);
   wordlistsRef.current = wordlists;
 
-  // First sync after sign-in: profile, stats merge, wordlists both ways.
+  // Failed account writes surface once per failure streak instead of vanishing.
+  const syncFailed = useRef(false);
+  const reportSyncError = useCallback((error: string | null) => {
+    if (!error) {
+      syncFailed.current = false;
+      return;
+    }
+    if (syncFailed.current) return;
+    syncFailed.current = true;
+    setBanner(`Account sync problem — your progress is saved locally but not to your account (${error}).`);
+  }, []);
+
+  // Stats writes to the account wait for the first-sync merge (or the
+  // adoption choice) so a pending decision can't be clobbered by the mirror.
+  const [statsSyncReady, setStatsSyncReady] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+
+  // First sync after sign-in: profile, stats merge/adoption, wordlists both ways.
   const syncedUser = useRef<string | null>(null);
   useEffect(() => {
     const user = auth.user;
-    if (!user || syncedUser.current === user.id) return;
+    if (!user) {
+      syncedUser.current = null;
+      setStatsSyncReady(false);
+      setAdoptOpen(false);
+      return;
+    }
+    if (syncedUser.current === user.id) return;
     syncedUser.current = user.id;
     void (async () => {
       await upsertProfile(
@@ -81,26 +104,50 @@ export default function App() {
       );
       const cloud = await fetchCloudStats();
       const local = gameRef.current.stats;
-      if (!cloud || local.played >= cloud.played) {
-        await saveCloudStats(user.id, local);
+      if (cloud) {
+        // Field-wise, order-independent merge: neither device loses progress,
+        // even when both sides have played the same number of games.
+        const merged = mergeStats(local, cloud);
+        gameRef.current.replaceStats(merged);
+        reportSyncError((await saveCloudStats(user.id, merged)).error);
+        setStatsSyncReady(true);
+      } else if (local.played > 0) {
+        // First sign-in with local progress: offer adoption, don't assume.
+        setAdoptOpen(true);
       } else {
-        gameRef.current.replaceStats(cloud);
+        reportSyncError((await saveCloudStats(user.id, local)).error);
+        setStatsSyncReady(true);
       }
       const cloudLists = await fetchCloudWordlists();
       if (cloudLists.length > 0) wordlistsRef.current.mergeLists(cloudLists);
       for (const list of wordlistsRef.current.lists) {
-        if (list.sourceType !== "builtin") void saveCloudWordlist(user.id, list);
+        if (list.sourceType !== "builtin") {
+          void saveCloudWordlist(user.id, list).then((r) => reportSyncError(r.error));
+        }
       }
     })();
-  }, [auth.user]);
+  }, [auth.user, reportSyncError]);
+
+  async function decideAdoption(adopt: boolean) {
+    setAdoptOpen(false);
+    const user = auth.user;
+    if (!user) return;
+    const next = adopt ? gameRef.current.stats : createInitialStats();
+    if (!adopt) gameRef.current.replaceStats(next);
+    reportSyncError((await saveCloudStats(user.id, next)).error);
+    setStatsSyncReady(true);
+  }
 
   // Mirror stats to the account, debounced.
   useEffect(() => {
-    if (!auth.user) return;
+    if (!auth.user || !statsSyncReady) return;
     const userId = auth.user.id;
-    const timeout = window.setTimeout(() => void saveCloudStats(userId, game.stats), 1500);
+    const timeout = window.setTimeout(
+      () => void saveCloudStats(userId, game.stats).then((r) => reportSyncError(r.error)),
+      1500,
+    );
     return () => window.clearTimeout(timeout);
-  }, [game.stats, auth.user]);
+  }, [game.stats, auth.user, statsSyncReady, reportSyncError]);
 
   // /e/<slug> public share links: apply the edition read-only, no login needed.
   const sharedLoaded = useRef(false);
@@ -146,7 +193,9 @@ export default function App() {
   // Imports go to the account too when signed in.
   function handleImportedList(list: Wordlist) {
     wordlists.addList(list);
-    if (auth.user) void saveCloudWordlist(auth.user.id, list);
+    if (auth.user) {
+      void saveCloudWordlist(auth.user.id, list).then((r) => reportSyncError(r.error));
+    }
   }
 
   // First visit: show the help dialog once.
@@ -428,6 +477,30 @@ export default function App() {
         <p>
           <strong>Best streak:</strong> {stats.best}
         </p>
+      </Modal>
+
+      <Modal
+        open={adoptOpen}
+        onClose={() => void decideAdoption(true)}
+        title="Bring your progress?"
+      >
+        <p>
+          This device has local stats — <strong>{stats.played}</strong> played,{" "}
+          <strong>{stats.won}</strong> won, score <strong>{stats.score}</strong>. Adopt them into
+          your account so they follow you across devices, or start the account fresh?
+        </p>
+        <div className="modal__actions">
+          <button
+            type="button"
+            className="btn btn--accent"
+            onClick={() => void decideAdoption(true)}
+          >
+            Adopt local stats
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => void decideAdoption(false)}>
+            Start fresh
+          </button>
+        </div>
       </Modal>
 
       <WordlistDialog

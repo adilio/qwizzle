@@ -62,3 +62,29 @@ export function applyLoss(stats: Stats, state: GameState): Stats {
 export function winPercent(stats: Stats): number {
   return stats.played === 0 ? 0 : Math.round((stats.won / stats.played) * 100);
 }
+
+/** The `${listId}-${YYYY-MM-DD}` key with the later date wins; ties keep `a`. */
+function laterDailyKey(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  // The trailing 10 chars are the ISO date, so this compares chronologically.
+  return b.slice(-10) > a.slice(-10) ? b : a;
+}
+
+/**
+ * Conflict-safe union of two stat lines (e.g. this device vs the account).
+ * Every counter is monotonically increasing, so a field-wise max never loses
+ * progress from either side — score, wins, and best streak survive even when
+ * `played` is equal — and merging in any order converges on the same result.
+ */
+export function mergeStats(a: Stats, b: Stats): Stats {
+  return {
+    version: 1,
+    played: Math.max(a.played, b.played),
+    won: Math.max(a.won, b.won),
+    streak: Math.max(a.streak, b.streak),
+    best: Math.max(a.best, b.best),
+    score: Math.max(a.score, b.score),
+    lastDailyKey: laterDailyKey(a.lastDailyKey, b.lastDailyKey),
+  };
+}

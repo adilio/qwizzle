@@ -177,9 +177,12 @@ export async function fetchCloudWordlists(): Promise<Wordlist[]> {
   return lists;
 }
 
-export async function saveCloudWordlist(userId: string, list: Wordlist): Promise<void> {
-  if (!supabase || list.sourceType === "builtin") return;
-  await supabase.from(TABLES.wordlists).upsert(
+export async function saveCloudWordlist(
+  userId: string,
+  list: Wordlist,
+): Promise<{ error: string | null }> {
+  if (!supabase || list.sourceType === "builtin") return { error: null };
+  const { error } = await supabase.from(TABLES.wordlists).upsert(
     {
       user_id: userId,
       name: list.name,
@@ -191,6 +194,7 @@ export async function saveCloudWordlist(userId: string, list: Wordlist): Promise
     },
     { onConflict: "user_id,name" },
   );
+  return { error: error?.message ?? null };
 }
 
 export async function fetchCloudStats(): Promise<Stats | null> {
@@ -211,13 +215,17 @@ export async function fetchCloudStats(): Promise<Stats | null> {
   };
 }
 
-export async function saveCloudStats(userId: string, stats: Stats): Promise<void> {
-  if (!supabase) return;
-  await supabase.from(TABLES.stats).upsert({
+export async function saveCloudStats(
+  userId: string,
+  stats: Stats,
+): Promise<{ error: string | null }> {
+  if (!supabase) return { error: "Accounts are not configured." };
+  const { error } = await supabase.from(TABLES.stats).upsert({
     user_id: userId,
     stats_json: stats,
     updated_at: new Date().toISOString(),
   });
+  return { error: error?.message ?? null };
 }
 
 export async function upsertProfile(userId: string, displayName: string | null): Promise<void> {

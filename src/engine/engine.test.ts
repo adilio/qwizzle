@@ -9,6 +9,7 @@ import {
   hashString,
   isValidGuess,
   keyboardStates,
+  mergeStats,
   newGame,
   randomIndex,
   shareGrid,
@@ -339,6 +340,36 @@ describe("stats", () => {
     // Same day, different wordlist still counts.
     const other = applyWin(stats, { ...win, wordlistId: "custom" });
     expect(other.played).toBe(2);
+  });
+
+  describe("mergeStats", () => {
+    const base = createInitialStats();
+
+    it("never loses progress when played counts are equal but fields diverge", () => {
+      // The failure mode from the audit: two sessions, same played count,
+      // different score/wins/streaks — a played-only comparison would let one
+      // side clobber the other.
+      const device = { ...base, played: 5, won: 4, streak: 2, best: 3, score: 320 };
+      const cloud = { ...base, played: 5, won: 5, streak: 5, best: 5, score: 410 };
+      const merged = mergeStats(device, cloud);
+      expect(merged).toEqual({ ...base, played: 5, won: 5, streak: 5, best: 5, score: 410 });
+    });
+
+    it("is order-independent (both devices converge)", () => {
+      const a = { ...base, played: 8, won: 6, streak: 0, best: 4, score: 500 };
+      const b = { ...base, played: 7, won: 7, streak: 7, best: 7, score: 480 };
+      expect(mergeStats(a, b)).toEqual(mergeStats(b, a));
+    });
+
+    it("keeps the later daily key so a synced daily is not double-counted", () => {
+      const a = { ...base, lastDailyKey: "builtin-2026-07-10" };
+      const b = { ...base, lastDailyKey: "builtin-2026-07-12" };
+      expect(mergeStats(a, b).lastDailyKey).toBe("builtin-2026-07-12");
+      expect(mergeStats(b, a).lastDailyKey).toBe("builtin-2026-07-12");
+      expect(mergeStats(a, { ...base, lastDailyKey: null }).lastDailyKey).toBe(
+        "builtin-2026-07-10",
+      );
+    });
   });
 });
 
