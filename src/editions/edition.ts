@@ -46,7 +46,9 @@ export function wordlistRefFor(list: Wordlist, sourceUrl?: string): EditionWordl
     id: list.id,
     name: list.name,
   };
-  if (sourceUrl) ref.source_url = sourceUrl;
+  // url/gist lists carry their origin so a recipient can re-fetch the list.
+  const origin = sourceUrl ?? list.sourceUrl;
+  if (origin) ref.source_url = origin;
   // Embed content for sources that can't be re-fetched.
   if (list.sourceType === "json" || list.sourceType === "csv" || list.sourceType === "paste") {
     ref.entries = list.entries;
@@ -122,6 +124,7 @@ export function wordlistFromRef(ref: EditionWordlistRef): Wordlist | null {
     name: ref.name ?? "Edition list",
     sourceType: ref.source_type,
     entries: ref.entries,
+    ...(ref.source_url ? { sourceUrl: ref.source_url } : {}),
   };
 }
 

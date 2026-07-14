@@ -53,6 +53,49 @@ describe("edition export/import round-trip", () => {
     expect(ref.source_url).toBe("https://example.com/w.json");
   });
 
+  it("carries a url list's own sourceUrl into the ref without a caller-supplied URL", () => {
+    // This is the path the Studio actually takes: wordlistRefFor(list) with no
+    // second argument. The list's imported origin must survive into the ref.
+    const list: Wordlist = {
+      id: "u2",
+      name: "Remote",
+      sourceType: "url",
+      entries: [{ word: "SOC" }],
+      sourceUrl: "https://example.com/imported.csv",
+    };
+    const ref = wordlistRefFor(list);
+    expect(ref.source_url).toBe("https://example.com/imported.csv");
+    expect(ref.entries).toBeUndefined();
+  });
+
+  it("carries a gist list's origin the same way", () => {
+    const list: Wordlist = {
+      id: "gabc",
+      name: "Gist list",
+      sourceType: "gist",
+      entries: [{ word: "IOC" }],
+      sourceUrl: "https://gist.github.com/adilio/abc123",
+    };
+    const ref = wordlistRefFor(list);
+    expect(ref.source_url).toBe("https://gist.github.com/adilio/abc123");
+  });
+
+  it("round-trips source_url through export/parse and back onto the wordlist", () => {
+    const edition = {
+      ...defaultEdition(),
+      wordlist: {
+        source_type: "url" as const,
+        name: "Remote",
+        source_url: "https://example.com/w.json",
+        entries: [{ word: "SOC" }],
+      },
+    };
+    const parsed = parseEdition(exportEditionJson(edition));
+    expect(parsed.wordlist.source_url).toBe("https://example.com/w.json");
+    const rebuilt = wordlistFromRef(parsed.wordlist);
+    expect(rebuilt?.sourceUrl).toBe("https://example.com/w.json");
+  });
+
   it("rejects files that are not editions", () => {
     expect(() => parseEdition("junk")).toThrow(ImportError);
     expect(() => parseEdition("{}")).toThrow(ImportError);

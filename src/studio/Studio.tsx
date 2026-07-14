@@ -145,6 +145,13 @@ export function Studio({
             : urlProvider(parsed.wordlist.source_url);
         const { wordlist } = await provider.load();
         onImportedList(parsed.wordlist.name ? { ...wordlist, name: parsed.wordlist.name } : wordlist);
+      } else if (parsed.wordlist.source_type !== "builtin") {
+        // Colors/name still apply, but never pretend the list came along.
+        setStatus({
+          text: "Edition imported, but its word list reference is missing — the current list stays active.",
+          tone: "error",
+        });
+        return;
       }
       setStatus({ text: "Edition imported.", tone: "success" });
     } catch (error) {

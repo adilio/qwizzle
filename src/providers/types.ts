@@ -7,4 +7,6 @@ export interface Wordlist {
   name: string;
   sourceType: WordlistSource;
   entries: WordEntry[];
+  /** Where a url/gist list came from, so editions can carry the reference. */
+  sourceUrl?: string;
 }

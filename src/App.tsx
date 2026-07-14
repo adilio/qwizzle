@@ -117,17 +117,29 @@ export default function App() {
       setEdition(cloud.edition);
       const ref = cloud.edition.wordlist;
       let list: Wordlist | null = wordlistFromRef(ref);
-      if (!list && ref.source_url) {
-        try {
-          const provider =
-            ref.source_type === "gist" ? gistProvider(ref.source_url) : urlProvider(ref.source_url);
-          list = (await provider.load()).wordlist;
-        } catch {
-          // shared list unavailable — the builtin list still plays
+      let listProblem: string | null = null;
+      if (!list && ref.source_type !== "builtin") {
+        if (ref.source_url) {
+          try {
+            const provider =
+              ref.source_type === "gist" ? gistProvider(ref.source_url) : urlProvider(ref.source_url);
+            list = (await provider.load()).wordlist;
+            if (ref.name) list = { ...list, name: ref.name };
+          } catch {
+            listProblem = "its word list could not be fetched";
+          }
+        } else {
+          listProblem = "its word list is missing from the share";
         }
       }
       if (list) wordlistsRef.current.addList(list);
-      setBanner(`Playing a shared edition — ${appTitle(cloud.edition.editionName)}.`);
+      // Never claim the edition loaded cleanly while silently playing the
+      // built-in list — say exactly which list is in play.
+      setBanner(
+        listProblem
+          ? `Loaded shared edition “${appTitle(cloud.edition.editionName)}”, but ${listProblem} — playing the built-in list instead.`
+          : `Playing a shared edition — ${appTitle(cloud.edition.editionName)}.`,
+      );
     });
   }, [setEdition]);
 

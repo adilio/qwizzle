@@ -20,9 +20,10 @@ function toWordlist(
   sourceType: WordlistSource,
   id: string,
   name: string,
+  sourceUrl?: string,
 ): ImportedWordlist {
   return {
-    wordlist: { id, name, sourceType, entries: result.entries },
+    wordlist: { id, name, sourceType, entries: result.entries, ...(sourceUrl ? { sourceUrl } : {}) },
     warnings: result.warnings,
   };
 }
@@ -74,7 +75,7 @@ export function urlProvider(url: string, authHeader?: string): WordProvider {
       } catch {
         // keep the fallback name
       }
-      return toWordlist(result, "url", `u${hashString(url).toString(36)}`, name);
+      return toWordlist(result, "url", `u${hashString(url).toString(36)}`, name, url);
     },
   };
 }
@@ -85,7 +86,7 @@ export function gistProvider(url: string): WordProvider {
       const ref = parseGistUrl(url);
       const { text, hint } = await fetchGist(ref);
       const result = parseAny(text, hint);
-      return toWordlist(result, "gist", `g${ref.id.slice(0, 12)}`, "Gist list");
+      return toWordlist(result, "gist", `g${ref.id.slice(0, 12)}`, "Gist list", url);
     },
   };
 }

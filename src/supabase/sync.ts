@@ -168,6 +168,7 @@ export async function fetchCloudWordlists(): Promise<Wordlist[]> {
         name: row.name,
         sourceType: row.source_type,
         entries: normalizeEntries(row.payload_json).entries,
+        ...(row.source_url ? { sourceUrl: row.source_url } : {}),
       });
     } catch {
       // skip corrupt rows
@@ -184,6 +185,7 @@ export async function saveCloudWordlist(userId: string, list: Wordlist): Promise
       name: list.name,
       source_type: list.sourceType,
       payload_json: list.entries,
+      source_url: list.sourceUrl ?? null,
       item_count: list.entries.length,
       updated_at: new Date().toISOString(),
     },
