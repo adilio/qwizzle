@@ -7,6 +7,24 @@ export interface AiPalette {
   swatches: string[];
 }
 
+/**
+ * Ask the palette function whether an LLM key is actually configured, so the
+ * AI button can hide (not just fail) on deployments without one. Any error —
+ * missing function, network, auth — reads as "not configured".
+ */
+export async function aiPaletteConfigured(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.functions.invoke("palette", {
+      body: { probe: true },
+    });
+    if (error) return false;
+    return Boolean((data as { configured?: boolean } | null)?.configured);
+  } catch {
+    return false;
+  }
+}
+
 /** Ask the server-side palette function (LLM key never reaches the client). */
 export async function aiPaletteFromUrl(url: string): Promise<AiPalette> {
   if (!supabase) throw new ImportError("Accounts are not configured on this deployment.");

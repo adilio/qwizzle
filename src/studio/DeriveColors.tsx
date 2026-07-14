@@ -7,7 +7,7 @@ import { ImportError } from "../providers/parse";
 
 interface DeriveColorsProps {
   onApply: (themes: { dark: ThemeColors; light: ThemeColors }) => void;
-  /** Signed-in with Supabase configured — shows the AI palette button. */
+  /** Signed in AND the palette function reports an LLM key — shows the AI button. */
   aiEnabled: boolean;
 }
 

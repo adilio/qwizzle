@@ -19,6 +19,7 @@ import {
   upsertProfile,
 } from "./supabase/sync";
 import { wordlistFromRef } from "./editions/edition";
+import { aiPaletteConfigured } from "./theme/aiPalette";
 import { gistProvider, urlProvider } from "./providers/providers";
 import type { Wordlist } from "./providers/types";
 import { Board } from "./game/Board";
@@ -84,6 +85,23 @@ export default function App() {
   // adoption choice) so a pending decision can't be clobbered by the mirror.
   const [statsSyncReady, setStatsSyncReady] = useState(false);
   const [adoptOpen, setAdoptOpen] = useState(false);
+
+  // The AI palette button shows only when the server actually has a key —
+  // signed-in alone isn't enough (README promises the button hides otherwise).
+  const [aiConfigured, setAiConfigured] = useState(false);
+  useEffect(() => {
+    if (!auth.user) {
+      setAiConfigured(false);
+      return;
+    }
+    let cancelled = false;
+    void aiPaletteConfigured().then((ok) => {
+      if (!cancelled) setAiConfigured(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user]);
 
   // First sync after sign-in: profile, stats merge/adoption, wordlists both ways.
   const syncedUser = useRef<string | null>(null);
@@ -533,7 +551,7 @@ export default function App() {
         activeListId={wordlist.id}
         onSelectList={wordlists.setActive}
         onImportedList={handleImportedList}
-        aiEnabled={Boolean(auth.user)}
+        aiEnabled={Boolean(auth.user) && aiConfigured}
       />
 
       <ResultDialog
