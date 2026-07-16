@@ -1,0 +1,55 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects pause after ~7 days without activity. This one was
+# found INACTIVE during a production audit. A daily ping keeps it awake once the
+# project is un-paused.
+#
+# Why DAILY and not weekly: GitHub delays — and sometimes silently drops — cron
+# runs under load, so a sparse schedule with one missed run leaves a >7-day gap
+# and the project pauses anyway. Daily gives ~7x redundancy; the job is a few
+# seconds. The :29 offset avoids the congested top of the hour.
+#
+# The anon key below is the Supabase *publishable* key (sb_publishable_...),
+# which is designed to be public — it already ships in the client bundle — so it
+# is inlined here rather than stored as a repo secret. It grants only what RLS
+# allows (public read of shared editions), nothing privileged.
+#
+# NOTE: this cannot succeed while the project is paused. Un-pause it in the
+# Supabase dashboard first; the next run (or a manual "Run workflow") then keeps
+# it alive going forward.
+
+on:
+  schedule:
+    - cron: '29 6 * * *'
+  workflow_dispatch:
+
+env:
+  SUPABASE_URL: https://qxdipvsqnjzqbzkuzcua.supabase.co
+  SUPABASE_ANON_KEY: sb_publishable_DXfq8OGkJ9IXUZ1U5yU5JA_RaUGGXWF
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      # A real SELECT against a public-readable table (editions has a
+      # "public editions readable" RLS policy) forces PostgREST to execute a
+      # database query. HEAD + count=exact does the DB work with no row
+      # transfer. -fsS fails the step on any non-2xx so a broken ping (or a
+      # still-paused project) surfaces loudly instead of looking green.
+      - name: Ping PostgREST (database)
+        run: |
+          curl -fsS --max-time 30 -I \
+            "$SUPABASE_URL/rest/v1/editions?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Prefer: count=exact" \
+            -o /dev/null
+
+      # Also touch Auth (GoTrue) so the auth service counts as active, not just
+      # the database — the signed-in experience depends on both.
+      - name: Ping Auth (GoTrue)
+        run: |
+          curl -fsS --max-time 30 \
+            "$SUPABASE_URL/auth/v1/health" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -o /dev/null
