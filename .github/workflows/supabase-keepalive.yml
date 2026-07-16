@@ -31,6 +31,14 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      # Jitter: on scheduled runs, wait a random 0-59 min before pinging so the
+      # effective request time drifts day to day instead of hitting the same
+      # fixed minute — less mechanical, and it spreads the ping off the exact
+      # cron instant. Skipped on manual runs so "Run workflow" pings at once.
+      - name: Randomized delay (jitter)
+        if: github.event_name == 'schedule'
+        run: sleep $(( RANDOM % 3540 ))
+
       # A real SELECT against a public-readable table (editions has a
       # "public editions readable" RLS policy) forces PostgREST to execute a
       # database query. HEAD + count=exact does the DB work with no row
