@@ -476,9 +476,9 @@ export default function App() {
       <footer className="footer">
         <div className="footer__instructions">Type with your keyboard, tap the board, or tap the keys. Enter submits, Backspace deletes.</div>
         <div className="footer__brand">
-          <div><strong>Qwizzle</strong> · a 4dl app by Adil Leghari</div>
+          <div>A 4dl project by Adil Leghari</div>
           <div>
-            <a href="https://4dl.ca" className="footer__link">More 4dl apps</a>
+            <a href="https://4dl.ca" className="footer__link">Explore 4dl</a>
             {" · "}
             <a href="https://github.com/adilio/qwizzle" target="_blank" rel="noopener" className="footer__link">Source</a>
           </div>

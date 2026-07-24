@@ -460,10 +460,6 @@ button {
   font-size: clamp(0.75rem, 1.8vw, 0.85rem);
 }
 
-.footer__brand strong {
-  color: var(--fg);
-}
-
 .footer__link {
   color: var(--accent);
   text-decoration: none;
