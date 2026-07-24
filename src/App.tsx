@@ -474,26 +474,14 @@ export default function App() {
       <Scoreboard stats={stats} />
 
       <footer className="footer">
-        <div>Type with your keyboard, tap the board, or tap the keys. Enter submits, Backspace deletes.</div>
-        <div>
-          <a
-            href="https://github.com/adilio/qwizzle"
-            target="_blank"
-            rel="noopener"
-            className="footer__link"
-          >
-            View on GitHub
-          </a>
-          {" · "}
-          Made with 💜 in 🇨🇦 by{" "}
-          <a
-            href="https://github.com/adilio"
-            target="_blank"
-            rel="noopener"
-            className="footer__link"
-          >
-            Adil Leghari
-          </a>
+        <div className="footer__instructions">Type with your keyboard, tap the board, or tap the keys. Enter submits, Backspace deletes.</div>
+        <div className="footer__brand">
+          <div><strong>Qwizzle</strong> · a 4dl app by Adil Leghari</div>
+          <div>
+            <a href="https://4dl.ca" className="footer__link">More 4dl apps</a>
+            {" · "}
+            <a href="https://github.com/adilio/qwizzle" target="_blank" rel="noopener" className="footer__link">Source</a>
+          </div>
         </div>
       </footer>
 

@@ -451,6 +451,19 @@ button {
   padding: 1rem 0;
 }
 
+.footer__brand {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
+  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+}
+
+.footer__brand strong {
+  color: var(--fg);
+}
+
 .footer__link {
   color: var(--accent);
   text-decoration: none;
