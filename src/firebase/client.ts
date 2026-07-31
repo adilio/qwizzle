@@ -2,9 +2,23 @@ import type { FirebaseApp } from "firebase/app";
 import type { Auth, GoogleAuthProvider } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
 
+const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined;
+
+/**
+ * Use the branded production host for OAuth so Google shows "Continue to
+ * qwizzle.4dl.ca" rather than the Firebase project hostname. This only works
+ * because netlify.toml transparently proxies the reserved /__/auth helper
+ * routes to qwizzle.firebaseapp.com; local development and deploy previews
+ * don't have that proxy, so they keep using the configured Firebase domain.
+ */
+const authDomain =
+  typeof window !== "undefined" && window.location.hostname === "qwizzle.4dl.ca"
+    ? window.location.hostname
+    : configuredAuthDomain;
+
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
+  authDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,

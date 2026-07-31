@@ -12,8 +12,6 @@
 // Firebase Admin `verifyIdToken`, and the `palette_calls` table becomes a
 // Netlify Blobs store.
 import { getStore } from "@netlify/blobs";
-import { cert, getApp, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 
 const RATE_LIMIT_PER_HOUR = 10;
 const RATE_WINDOW_MS = 3_600_000;
@@ -43,19 +41,41 @@ interface Palette {
 }
 
 /**
- * Firebase Admin, initialised once per container from a service-account JSON in
- * the environment. Returns null when the credential is absent or unparseable,
- * which the caller turns into a refusal — an unverifiable caller must never be
- * treated as authenticated.
+ * Verifies a Firebase ID token and returns the uid, or null if it is invalid,
+ * expired, or the check could not be completed.
+ *
+ * This replaces Supabase's `verify_jwt`. The migration plan called for the
+ * Firebase Admin SDK's verifyIdToken, which would work, but it authenticates
+ * with a service-account private key that would have to be minted, pasted into
+ * Netlify's environment, and rotated by hand. Identity Toolkit's accounts:lookup
+ * gets the same guarantee — Google validates the signature, issuer, audience and
+ * expiry — using only the web API key, which is already public in the client
+ * bundle. Fewer secrets in play, and no private key that can leak.
+ *
+ * It also checks something offline verification cannot: accounts:lookup returns
+ * no user for an account that has since been deleted or disabled, so a token
+ * that is still within its hour stops working the moment the account does.
+ *
+ * The cost is one network round-trip per call, which is immaterial next to the
+ * model call this endpoint is gating.
  */
-function adminAuth() {
+async function verifyIdToken(idToken: string): Promise<string | null> {
+  const apiKey = process.env.FIREBASE_API_KEY;
+  if (!apiKey) return null;
   try {
-    if (!getApps().length) {
-      const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-      if (!raw) return null;
-      initializeApp({ credential: cert(JSON.parse(raw)) });
-    }
-    return getAuth(getApp());
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { users?: Array<{ localId?: string }> };
+    const uid = data.users?.[0]?.localId;
+    return typeof uid === "string" && uid ? uid : null;
   } catch {
     return null;
   }
@@ -151,21 +171,15 @@ export default async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.LLM_API_KEY;
 
   // Supabase enforced this with verify_jwt before the function ever ran; here
-  // it is the first thing the handler does, and it fails closed if the Admin
-  // credential itself is missing.
-  const auth = adminAuth();
-  if (!auth) {
-    return json(503, { error: "The AI palette is temporarily unavailable — try again later." });
-  }
+  // it is the first thing the handler does. Anything that is not a provably
+  // valid token — missing, malformed, expired, or unverifiable because the
+  // check itself failed — is refused. There is no path through this that
+  // reaches the model without a confirmed uid.
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return json(401, { error: "Sign in to use the AI palette." });
 
-  let userId: string;
-  try {
-    userId = (await auth.verifyIdToken(token)).uid;
-  } catch {
-    return json(401, { error: "Sign in to use the AI palette." });
-  }
+  const userId = await verifyIdToken(token);
+  if (!userId) return json(401, { error: "Sign in to use the AI palette." });
 
   let body: Record<string, unknown>;
   try {

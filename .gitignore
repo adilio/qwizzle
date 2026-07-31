@@ -8,3 +8,6 @@ dist
 AGENTS.md
 AGENTS2.md
 supabase/.temp
+
+# Local Netlify folder
+.netlify
