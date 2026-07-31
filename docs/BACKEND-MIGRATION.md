@@ -8,10 +8,112 @@ plus a keep-alive defect found while writing it that needs fixing either way.
 
 ---
 
+# ⚠️ STATUS — updated 2026-07-31
+
+**The plan is essentially done.** Everything that could be executed without a
+human present has shipped and is verified in production. What follows in this
+section is only what is left. The full record of what was done, and every
+deviation taken, is in the [Execution log](#execution-log) at the bottom.
+
+## What's left (4 items, all need Adil at a computer)
+
+### 1. Reissue `LLM_API_KEY` — because I destroyed it
+
+Writing the new Firebase values into `qwizzle/.env`, I **overwrote the file
+instead of appending**. It was gitignored, there are no local snapshots, no Time
+Machine destination, and Netlify had no variables set — so that file was the
+only copy. The Anthropic key in it is unrecoverable.
+
+Mint a new Anthropic API key, then:
+
+```sh
+cd /Users/adil/Code/qwizzle
+netlify env:set LLM_API_KEY <new-key> --context production
+```
+
+Nothing else is blocked by this — only the AI palette. The other values lost in
+the same overwrite don't matter: `VITE_SUPABASE_URL` is derivable, the anon key
+is inlined in qwizzle's keep-alive workflow, and the rest belong to the Supabase
+project being deleted in step 3 below.
+
+### 2. Sign in once on qwizzle.4dl.ca, to confirm the round-trip
+
+`signInWithPopup` opens a window outside browser automation's reach and the
+Google consent screen needs a real click, so this is the one thing that could
+not be verified unattended. Everything up to it *is* verified (see the log):
+config baked into the bundle, the `/__/auth` proxy returning 200, the palette
+endpoint refusing unauthenticated callers, and the Firestore rules behaving
+correctly against the live project.
+
+Sign in, then confirm stats and a saved edition round-trip. If something is
+wrong, it will be here.
+
+### 3. Delete the Supabase code and project — *only after step 2 passes*
+
+Deliberately **not** done. This plan sequences deletion after production is
+verified, verification is one click short, and this is the only irreversible act
+in the whole document. Holding costs nothing: the Supabase code is already dead
+in production (its env vars are gone, so the client is null), and its keep-alive
+is still green, so the project stays healthy meanwhile.
+
+When step 2 passes:
+
+```sh
+cd /Users/adil/Code/qwizzle
+git rm -r src/supabase supabase .github/workflows/supabase-keepalive.yml
+pnpm remove @supabase/supabase-js
+pnpm verify && git commit && git push
+```
+
+Then delete project `qxdipvsqnjzqbzkuzcua` **from the Supabase dashboard** — the
+management token that could have done it by API was lost in the same overwrite.
+
+### 4. Optional — upgrade the PromptStash keep-alive ping from a read to a write
+
+The central cron pings with a `SELECT`. The intended design was a write, which
+is unambiguously activity. It could not be set up unattended: PromptStash's
+project sits under a different Supabase org than any credential on this machine
+can reach, and every table there is RLS-gated so the anon key cannot write.
+
+Exact SQL, the secret to set, and the YAML step to swap in are all in
+`4dl.ca/docs/KEEPALIVE.md`. About five minutes once you're in that dashboard.
+
+Not urgent: the relocated cron with its dead-man's-switch is already a large
+improvement on what was there, and PromptStash's read pings have drawn no
+further warning.
+
+## What's already done and verified
+
+| # | Step | State |
+|---|---|---|
+| 1 | Keep-alive moved to `4dl.ca` + dead-man's-switch | ✅ shipped, run-verified |
+| — | PromptStash's in-repo keep-alive deleted | ✅ |
+| 2 | Firebase project `qwizzle` + Google auth + Firestore + rules | ✅ live |
+| 3 | `src/firebase/*` written, call sites ported | ✅ |
+| 4 | `palette` ported to a Netlify Function | ✅ live, returns 401 unauthenticated |
+| 5 | Netlify env set, rebuilt, prod verified | ✅ except the sign-in click |
+| — | Dependabot alert #8 | ✅ cleared |
+| — | ThreatDex | ✅ untouched, as intended |
+
+**The headline:** accounts are switched on in production for the first time.
+For the entire Supabase era the deployed bundle had them dark. The "Sign in"
+button is now live on qwizzle.4dl.ca.
+
+---
+
 ## Cold start — read this first
 
 This plan is written to be executed by a session with **no prior context**.
 Everything needed is below; nothing needs to be asked of Adil.
+
+> **Superseded 2026-07-31.** The plan has been executed — see the STATUS section
+> above for the four remaining items. Everything below this line is the original
+> plan as written, preserved so the reasoning behind each decision stays
+> readable. Where execution diverged from it, the [Execution log](#execution-log)
+> says so and why. Two specifics worth knowing before you trust anything below:
+> the `publicEditions` rule sketched later in this document is **wrong** and
+> would reject every publish, and the "seed the default edition" step rests on a
+> misreading — that migration only adds a column.
 
 **Repos and paths** (all under `/Users/adil/Code`, which is *not* itself a repo):
 
@@ -203,13 +305,18 @@ ever do a slug lookup anyway. Write both on publish.
 
 ### Security rules (replaces all five RLS policies)
 
+> **⚠️ Do not use this sketch — it is broken.** The `publicEditions` write rule
+> checks `resource.data.ownerId`, but on a *create* there is no `resource` yet,
+> so this rejects every publish. The shipped version splits create from update
+> and is in `qwizzle/firestore.rules`, already published to the live project.
+
 ```
 match /users/{uid}/{doc=**} {
   allow read, write: if request.auth.uid == uid;
 }
 match /publicEditions/{slug} {
   allow read: if true;
-  allow write: if request.auth.uid == resource.data.ownerId;
+  allow write: if request.auth.uid == resource.data.ownerId;   // ← broken, see above
 }
 ```
 
@@ -283,6 +390,9 @@ no 4dl.ca subdomain like the others.
 ---
 
 ## Execution order
+
+_Original ordering, kept for the reasoning. Steps 1, 2, 4 and 5 are done; step 3
+is deliberately held until a sign-in is confirmed. See STATUS at the top._
 
 Run top to bottom, autonomously, committing and pushing at each numbered step.
 
