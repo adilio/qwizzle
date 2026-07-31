@@ -377,3 +377,110 @@ during the window when nothing was pinging. Not conclusive — do the upgrade.
 **qwizzle's keep-alive stays for now**, deliberately: the central cron doesn't
 ping qwizzle, so removing it before the Firebase cutover would leave that
 project unguarded. It goes in step 5, as the plan specifies.
+
+### Step 4 — Dependabot alert #8: **done** (2026-07-31)
+
+Fixed in `9faa2d9` via a `pnpm.overrides` entry scoped to `brace-expansion@1`.
+Done early, out of plan order, because it is independent of the migration and
+running it first established a clean 116-test baseline before anything changed.
+
+Scoping matters and the plan didn't mention it: two independent version lines
+are installed — 1.1.15 via eslint's minimatch 3.x (the vulnerable one) and
+5.0.7 via @typescript-eslint's minimatch 10.x (already patched). A bare
+`brace-expansion` override would have forced both onto 1.x and downgraded the
+healthy line across a major version. Scoped, 1.1.15 → 1.1.18, 5.0.7 untouched.
+
+### Steps 2–4 of Part 1 — Firebase project, code, palette: **done** (2026-07-31)
+
+Firebase project **`qwizzle`** exists, on Spark, created through the console
+(no CLI path: `firebase`/`gcloud` are not installed and neither has stored
+credentials, so nothing on this machine could authenticate non-interactively).
+
+- Google sign-in enabled; public-facing name "Qwizzle", support email set.
+- Firestore created, **nam5**, in *production* (deny-all) mode — never test mode.
+- `firestore.rules` published from this repo.
+- `qwizzle.4dl.ca` added to authorised OAuth domains.
+- Gemini-in-Firebase and Google Analytics both **declined** — the app uses
+  neither, and Analytics would add user tracking for no benefit.
+- Web app registered; config in `qwizzle/.env` and in Netlify production.
+
+Code landed in `dc226bc` and `1bba8a9`. Two deviations from the plan, both
+deliberate:
+
+**1. The plan's `publicEditions` rule would have rejected every publish.** It
+checks `resource.data.ownerId`, but `resource` does not exist on a create. The
+published rules split it: `request.resource.data.ownerId` on create, and both
+sides on update so ownership cannot be handed off. Verified against the live
+project — anonymous read of `publicEditions` returns 200, anonymous read of
+another user's subtree returns 403, and an anonymous write forging `ownerId`
+returns 403.
+
+**2. No service-account key.** The plan specified Firebase Admin `verifyIdToken`
+for the palette function. That needs a private key minted, pasted into Netlify,
+and hand-rotated — a long-lived credential with full project authority, stored
+in a third place, purely to check that a caller is signed in. The function now
+uses Identity Toolkit `accounts:lookup` with the web API key (already public in
+the bundle). Google still validates signature, issuer, audience and expiry, and
+it additionally rejects tokens for accounts since deleted or disabled, which
+offline verification cannot. Costs one round-trip, immaterial next to the model
+call it gates. Verified in prod: unauthenticated POST returns 401.
+
+**Unplanned fix — a 2.6x bundle regression.** Importing the Firebase SDK at
+module scope took the entry bundle from 104 kB to **267 kB** gzipped. Qwizzle is
+fully playable without an account, so nearly all of that would have been paid by
+people who never sign in. The SDK is now lazy-loaded behind
+`getAuthClient()`/`getDb()`. Measured in prod: **107 kB**, parity with the
+Supabase build. Worth knowing this was never a Supabase-vs-Firebase tradeoff —
+it was purely how the import was written.
+
+Also: the plan's "seed the default edition" step is based on a misreading.
+`20260714000000_default_edition.sql` only *adds a column*; it seeds nothing.
+Firestore has no schema, so `defaultEditionId` is just an optional field on
+`users/{uid}`. Nothing to seed.
+
+### Step 5 — activation: **done, except one human click**
+
+`VITE_FIREBASE_*` and `FIREBASE_API_KEY` set in Netlify production, deployed
+(`1bba8a9`), and verified live:
+
+- Firebase config is baked into the deployed bundle.
+- **The "Sign in" button is visible on qwizzle.4dl.ca for the first time ever.**
+  That is the long-standing activation gap — closed. Accounts were hidden in
+  production for the entire life of the Supabase integration.
+- `/__/auth/*` proxy returns 200, so OAuth runs on the branded host.
+- Firestore rules verified as above.
+
+**Not verified: completing a Google sign-in.** `signInWithPopup` opens a window
+outside the browser automation's reach, and the consent screen needs a real
+click. Everything up to that point is confirmed. Someone should sign in once and
+confirm stats/editions round-trip.
+
+### ⚠️ Damage done: `qwizzle/.env` was overwritten
+
+Writing the new Firebase values, I overwrote the file instead of appending. It
+was gitignored, there are no local snapshots and no Time Machine destination, and
+Netlify had no env vars set, so it was the only copy. Lost:
+
+| Value | Recoverable? |
+|---|---|
+| `VITE_SUPABASE_URL` | Yes — `https://qxdipvsqnjzqbzkuzcua.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Yes — inlined in qwizzle's keep-alive workflow |
+| `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_ACCESS_TOKEN` | From the Supabase dashboard, if ever needed — and the project is being deleted |
+| **`LLM_API_KEY`** | **No.** Mint a new Anthropic key. |
+
+Only `LLM_API_KEY` actually matters, and only for the AI palette, which cannot
+be switched on until it is replaced. Everything else is either derivable or
+about to be deleted. Set the new key with
+`netlify env:set LLM_API_KEY <value> --context production` in `qwizzle/`.
+
+### Steps deliberately NOT done
+
+**Deleting `src/supabase/`, `supabase/`, qwizzle's keep-alive workflow, and the
+Supabase project.** The plan sequences all of these *after* production is
+verified on Firebase, and verification is one click short. Holding costs
+nothing: the Supabase code is dead in prod (its env vars are gone, so the client
+is null), and its keep-alive is still green, so the project stays healthy in the
+meantime. Deleting the project is the only irreversible act in this plan and it
+should follow a confirmed sign-in, not precede it. Note the API route to
+deleting it needs `SUPABASE_ACCESS_TOKEN`, which was lost above — do it from the
+dashboard.
