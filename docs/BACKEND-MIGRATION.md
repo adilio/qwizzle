@@ -8,6 +8,47 @@ plus a keep-alive defect found while writing it that needs fixing either way.
 
 ---
 
+## Cold start — read this first
+
+This plan is written to be executed by a session with **no prior context**.
+Everything needed is below; nothing needs to be asked of Adil.
+
+**Repos and paths** (all under `/Users/adil/Code`, which is *not* itself a repo):
+
+| Repo | Path | GitHub | Netlify site id |
+|---|---|---|---|
+| qwizzle | `qwizzle/` | `adilio/qwizzle` | `cf9f0e6b-0db3-41ae-8914-46a5e14a8bea` (qwizzle.4dl.ca) |
+| PromptStash | `PromptStash/` | `adilio/PromptStash` | `ac51512c-0330-4378-8746-77f738b77321` (promptstash.4dl.ca) |
+| ThreatDex | `threatdex/` | `adilio/threatdex` | `aad52cb2-64c7-421a-9a21-a8fa02a67b2a` (threatdex.netlify.app) |
+| 4dl.ca | `4dl.ca/` | `adilio/4dl.ca` | `5ac9c1a5-c8a8-485a-a20f-7ec492be99b6` (4dl.ca) |
+
+**Credentials** — all in gitignored `.env` files, already on this machine:
+
+- `qwizzle/.env` — `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, a management
+  `SUPABASE_ACCESS_TOKEN`, and `LLM_API_KEY`. **Known defect:** the
+  `SUPABASE_PROJECT_REF` line has a typo (missing leading `q`) — derive the ref
+  from the URL instead: `qxdipvsqnjzqbzkuzcua`.
+- `threatdex/.env` — Supabase URL/anon/service keys plus OTX, HF, Gemini and
+  Stable Horde keys.
+- `PromptStash/.env` — **empty.** Its anon key lives only in the GitHub repo
+  secret `SUPABASE_ANON_KEY`. Its project ref is `ecpmipfpknoxeohbafxs`; a
+  service-role key must be pulled from the Supabase dashboard for step 1.
+- Netlify CLI is authenticated on this machine as adilio@gmail.com.
+- The `SUPABASE_ACCESS_TOKEN` in `qwizzle/.env` only sees the qwizzle project;
+  PromptStash and ThreatDex are under a different org.
+
+**Reference implementation for the Firebase side:** `Rhabbit/` (project
+`rhabbit-e8f9d`) is already a working Firebase Auth + Firestore app on the free
+Spark plan, deployed to Netlify. Mirror its patterns — `VITE_FIREBASE_*` env
+vars, `firestore.rules` in-repo, server-side access control in rules.
+
+**Verify before trusting this document.** It was written 2026-07-30; check that
+the stated facts still hold (project status, workflow run history, whether prod
+still lacks the `VITE_SUPABASE_*` vars) before acting on them.
+
+---
+
 ## Working agreement
 
 Adil's standing instructions for this work:
@@ -255,7 +296,23 @@ Run top to bottom, autonomously, committing and pushing at each numbered step.
    project + rules; `src/firebase/*`; `palette` Netlify Function; Netlify env +
    rebuild + prod verify; deletion of the Supabase code.
 3. **Delete the qwizzle Supabase project** once prod is verified on Firebase.
-4. **ThreatDex: nothing.** Leave it entirely alone.
+4. **Clear qwizzle's Dependabot alert** (see below).
+5. **ThreatDex: nothing.** Leave it entirely alone.
+
+### Step 4 detail — Dependabot alert #8 (qwizzle)
+
+Surfaced by GitHub on the push of 2026-07-30. Unrelated to this migration, but
+cheap to clear while in the repo:
+
+- **Alert:** https://github.com/adilio/qwizzle/security/dependabot/8
+- `brace-expansion` `< 1.1.16`, ReDoS — exponential-time expansion of
+  consecutive non-expanding `{}` groups. Rated **high**, but scope is
+  **development** (a transitive dev dependency, not shipped in the bundle), so
+  real-world exposure is negligible. Fix it, don't panic about it.
+- Fix: bump the transitive dep to `>= 1.1.16` via a `pnpm.overrides` entry in
+  `package.json` (or `pnpm update brace-expansion --recursive` if that resolves
+  it), then run `pnpm verify` — the repo's 116-test gate — before committing.
+- Do this as its own commit, not folded into migration work.
 
 Where a step reveals something that contradicts this plan, update this file in
 the same commit that acts on it.
