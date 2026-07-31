@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Replaces the five Postgres RLS policies from supabase/migrations/
+// 20260705000000_init.sql. The shape is deliberately the same: you touch your
+// own rows, and the single exception is an edition you explicitly published.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Everything a user owns — profile, stats, wordlists, editions — lives
+    // under users/{uid}, so one rule covers the four "own X" policies at once.
+    match /users/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // The "public editions readable" policy. In Postgres this was a second
+    // policy on the same table (`using (is_public = true)`); Firestore rules
+    // cannot filter a subcollection that way without also opening up the
+    // parent, so published editions are mirrored into their own top-level
+    // collection keyed by share slug. Share links only ever do a slug lookup,
+    // so nothing is lost.
+    match /publicEditions/{slug} {
+      // Anonymous, by design — this is what /e/<slug> serves, and visitors
+      // following a share link are not signed in.
+      allow read: if true;
+
+      // On create there is no `resource` yet, so ownership has to be asserted
+      // from the incoming document. Requiring ownerId to equal the caller is
+      // what stops one user publishing under another's name.
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+
+      // On update both sides are checked: the caller must already own the
+      // document, and must not hand ownership to someone else in the process.
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid;
+
+      // Unpublishing and deleting an edition both remove the mirror.
+      allow delete: if signedIn()
+        && resource.data.ownerId == request.auth.uid;
+    }
+  }
+}

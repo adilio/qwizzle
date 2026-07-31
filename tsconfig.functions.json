@@ -1,0 +1,20 @@
+{
+  "//": "Netlify Functions run on Node, not in the browser, so they need their own compiler setup: Node types for process.env, no DOM lib beyond the fetch/Request/Response globals Node provides, and no vite/client types. Wired into `pnpm typecheck` so the palette endpoint is covered by the same gate as the app.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["netlify"]
+}

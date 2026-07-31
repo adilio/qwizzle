@@ -8,7 +8,7 @@ import { useWordlists } from "./wordlists/useWordlists";
 import { WordlistDialog } from "./wordlists/WordlistDialog";
 import { useEdition } from "./editions/useEdition";
 import { Studio } from "./studio/Studio";
-import { useAuth } from "./supabase/useAuth";
+import { useAuth } from "./firebase/useAuth";
 import { AccountDialog } from "./account/AccountDialog";
 import {
   fetchCloudEditionById,
@@ -19,7 +19,7 @@ import {
   saveCloudStats,
   saveCloudWordlist,
   upsertProfile,
-} from "./supabase/sync";
+} from "./firebase/sync";
 import { defaultEdition, wordlistFromRef } from "./editions/edition";
 import type { Edition, EditionWordlistRef } from "./editions/edition";
 import { aiPaletteConfigured } from "./theme/aiPalette";
@@ -146,34 +146,31 @@ export default function App() {
       setAdoptOpen(false);
       return;
     }
-    if (syncedUser.current === user.id) return;
-    syncedUser.current = user.id;
+    if (syncedUser.current === user.uid) return;
+    syncedUser.current = user.uid;
     void (async () => {
-      await upsertProfile(
-        user.id,
-        (user.user_metadata?.full_name as string | undefined) ?? user.email ?? null,
-      );
-      const cloud = await fetchCloudStats();
+      await upsertProfile(user.uid, user.displayName ?? user.email ?? null);
+      const cloud = await fetchCloudStats(user.uid);
       const local = gameRef.current.stats;
       if (cloud) {
         // Field-wise, order-independent merge: neither device loses progress,
         // even when both sides have played the same number of games.
         const merged = mergeStats(local, cloud);
         gameRef.current.replaceStats(merged);
-        reportSyncError((await saveCloudStats(user.id, merged)).error);
+        reportSyncError((await saveCloudStats(user.uid, merged)).error);
         setStatsSyncReady(true);
       } else if (local.played > 0) {
         // First sign-in with local progress: offer adoption, don't assume.
         setAdoptOpen(true);
       } else {
-        reportSyncError((await saveCloudStats(user.id, local)).error);
+        reportSyncError((await saveCloudStats(user.uid, local)).error);
         setStatsSyncReady(true);
       }
-      const cloudLists = await fetchCloudWordlists();
+      const cloudLists = await fetchCloudWordlists(user.uid);
       if (cloudLists.length > 0) wordlistsRef.current.mergeLists(cloudLists);
       for (const list of wordlistsRef.current.lists) {
         if (list.sourceType !== "builtin") {
-          void saveCloudWordlist(user.id, list).then((r) => reportSyncError(r.error));
+          void saveCloudWordlist(user.uid, list).then((r) => reportSyncError(r.error));
         }
       }
 
@@ -182,8 +179,8 @@ export default function App() {
       const pristine =
         JSON.stringify(editionRef.current) === JSON.stringify(defaultEdition());
       if (pristine && !window.location.pathname.startsWith("/e/")) {
-        const defaultId = await fetchDefaultEditionId();
-        const cloud = defaultId ? await fetchCloudEditionById(defaultId) : null;
+        const defaultId = await fetchDefaultEditionId(user.uid);
+        const cloud = defaultId ? await fetchCloudEditionById(user.uid, defaultId) : null;
         if (cloud) {
           setEdition(cloud.edition);
           const { list } = await listFromEditionRef(cloud.edition.wordlist);
@@ -199,14 +196,14 @@ export default function App() {
     if (!user) return;
     const next = adopt ? gameRef.current.stats : createInitialStats();
     if (!adopt) gameRef.current.replaceStats(next);
-    reportSyncError((await saveCloudStats(user.id, next)).error);
+    reportSyncError((await saveCloudStats(user.uid, next)).error);
     setStatsSyncReady(true);
   }
 
   // Mirror stats to the account, debounced.
   useEffect(() => {
     if (!auth.user || !statsSyncReady) return;
-    const userId = auth.user.id;
+    const userId = auth.user.uid;
     const timeout = window.setTimeout(
       () => void saveCloudStats(userId, game.stats).then((r) => reportSyncError(r.error)),
       1500,
@@ -250,7 +247,7 @@ export default function App() {
   function handleImportedList(list: Wordlist) {
     wordlists.addList(list);
     if (auth.user) {
-      void saveCloudWordlist(auth.user.id, list).then((r) => reportSyncError(r.error));
+      void saveCloudWordlist(auth.user.uid, list).then((r) => reportSyncError(r.error));
     }
   }
 

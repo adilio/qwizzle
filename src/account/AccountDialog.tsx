@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "firebase/auth";
 import { Modal } from "../game/Modal";
 import type { Edition } from "../editions/edition";
 import {
@@ -9,8 +9,8 @@ import {
   saveCloudEdition,
   setDefaultEdition,
   setEditionPublic,
-} from "../supabase/sync";
-import type { CloudEdition } from "../supabase/sync";
+} from "../firebase/sync";
+import type { CloudEdition } from "../firebase/sync";
 import { copyText } from "../lib/share";
 import { appTitle } from "../brand";
 
@@ -39,13 +39,14 @@ export function AccountDialog({
   const [status, setStatus] = useState<{ text: string; tone: "success" | "error" } | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!user) return;
     const [editions, currentDefault] = await Promise.all([
-      fetchCloudEditions(),
-      fetchDefaultEditionId(),
+      fetchCloudEditions(user.uid),
+      fetchDefaultEditionId(user.uid),
     ]);
     setCloudEditions(editions);
     setDefaultId(currentDefault);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (open && user) void refresh();
@@ -54,7 +55,7 @@ export function AccountDialog({
   async function handleSave(existingId?: string) {
     if (!user) return;
     setBusy(true);
-    const result = await saveCloudEdition(user.id, edition, existingId);
+    const result = await saveCloudEdition(user.uid, edition, existingId);
     setBusy(false);
     if ("error" in result) {
       setStatus({ text: result.error, tone: "error" });
@@ -67,7 +68,7 @@ export function AccountDialog({
   async function handleSetDefault(item: CloudEdition) {
     if (!user) return;
     const next = defaultId === item.id ? null : item.id;
-    const { error } = await setDefaultEdition(user.id, next);
+    const { error } = await setDefaultEdition(user.uid, next);
     if (error) {
       setStatus({ text: error, tone: "error" });
       return;
@@ -82,11 +83,12 @@ export function AccountDialog({
   }
 
   async function handleShare(item: CloudEdition) {
+    if (!user) return;
     if (item.isPublic && item.shareSlug) {
-      await setEditionPublic(item.id, false);
+      await setEditionPublic(user.uid, item.id, false);
       setStatus({ text: "Sharing turned off.", tone: "success" });
     } else {
-      const slug = await setEditionPublic(item.id, true);
+      const slug = await setEditionPublic(user.uid, item.id, true);
       if (slug) {
         const link = `${window.location.origin}/e/${slug}`;
         const copied = await copyText(link);
@@ -130,7 +132,7 @@ export function AccountDialog({
         <>
           <p>
             Signed in as{" "}
-            <strong>{user.user_metadata?.full_name ?? user.email ?? "player"}</strong>
+            <strong>{user.displayName ?? user.email ?? "player"}</strong>
             {user.email ? ` (${user.email})` : ""}.
           </p>
 
@@ -191,7 +193,7 @@ export function AccountDialog({
                     type="button"
                     className="btn btn--ghost btn--small"
                     onClick={() => {
-                      void deleteCloudEdition(item.id).then(refresh);
+                      void deleteCloudEdition(user.uid, item.id).then(refresh);
                     }}
                   >
                     Delete
