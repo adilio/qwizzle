@@ -316,3 +316,64 @@ cheap to clear while in the repo:
 
 Where a step reveals something that contradicts this plan, update this file in
 the same commit that acts on it.
+
+---
+
+## Execution log
+
+### Step 1 — keep-alive: **done, with one deviation** (2026-07-31)
+
+Verified first, and every factual claim in this document held: all three
+projects alive; PromptStash's keep-alive really did have only 4 runs, the first
+on 2026-07-27; qwizzle's really was green with no gaps; `4dl.ca` and `qwizzle`
+had no repo secrets.
+
+**Shipped:**
+
+- `4dl.ca/.github/workflows/supabase-keepalive.yml` — one central daily cron,
+  jittered, pinging PromptStash's PostgREST and GoTrue. Committed `742caf6`.
+- `4dl.ca/docs/KEEPALIVE.md` — rationale, coverage table, and the manual
+  upgrade path (see deviation).
+- Dead-man's-switch, no third-party signup required. The job writes and pushes
+  `.github/keepalive-heartbeat.json` after a successful ping; the next run to
+  fire compares against it and **fails** if the gap exceeded 3 days. Verified
+  end to end on run `30607631903` — ping green, heartbeat committed and pushed
+  by the job.
+- Deleted `PromptStash/.github/workflows/supabase-keepalive.yml` (`24755e7`),
+  only after the replacement was confirmed working.
+
+**Better than planned:** the plan assumed hosting the cron in `4dl.ca` was
+sufficient because that repo "gets pushes." It doesn't — its last push before
+this work was 2026-07-24, six days prior. Relocating alone would have
+reproduced the same silent-stall failure in a new repo. The heartbeat commit
+fixes this properly: it makes the workflow generate a daily push into its own
+host repo, so it keeps *itself* scheduled. That is a real fix for the root
+cause rather than a move to slightly-less-quiet ground.
+
+**Deviation — the ping is still a read, not a write.** The plan called for a
+`keepalive` table plus a service-role upsert. That is not reachable unattended:
+
+- PromptStash's project (`ecpmipfpknoxeohbafxs`) is under a different Supabase
+  org, and the `SUPABASE_ACCESS_TOKEN` in `qwizzle/.env` returns *only* the
+  qwizzle project — confirmed against `api.supabase.com/v1/projects`.
+- No service-role key for it exists anywhere on this machine. `PromptStash/.env`
+  doesn't exist at all (the plan says "empty"); its Netlify env holds only
+  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; its single GitHub secret is
+  `SUPABASE_ANON_KEY`, and secret *values* can't be read back.
+- Every PromptStash table is RLS-gated to authenticated users, so the anon key
+  cannot write anywhere. Creating the table needs DDL, which needs the key.
+
+Per the working agreement this did not block. What shipped is the read ping —
+which is strictly better than the status quo, since the status quo was a ping
+that wasn't running at all — with the write upgrade written up as a ~5-minute
+task in `docs/KEEPALIVE.md`: exact SQL, the `gh secret set` line, and the YAML
+step to swap in. **This is the one item needing Adil**, and only because it
+needs a dashboard login nothing here can perform.
+
+Worth noting the evidence is mildly reassuring: PromptStash's 4 real read pings
+(07-27 → 07-30) drew no further warning, while both prior warnings landed
+during the window when nothing was pinging. Not conclusive — do the upgrade.
+
+**qwizzle's keep-alive stays for now**, deliberately: the central cron doesn't
+ping qwizzle, so removing it before the Firebase cutover would leave that
+project unguarded. It goes in step 5, as the plan specifies.
